@@ -1,0 +1,33 @@
+/* 1. The Main Page (Stacks top to bottom) */
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* 2. The Grid Wrapper (Puts things side-by-side) */
+.songs_grid {
+    display: flex;
+    flex-direction: row;      /* Forces them to sit left-to-right */
+    flex-wrap: wrap;          /* Lets them drop to a new line if the screen is small */
+    /* justify-content: center; */  /* Centers the whole grid */
+    gap: 30px;                /* Space between the song cards */
+    width: 100%;
+    max-width: 1000px;        /* Keeps the grid from stretching too far on wide screens */
+    padding: 20px;
+}
+
+.searchbarContainer {
+    display: flex;
+    flex-direction: row;
+}
+
+/* Add this to your CSS file */
+.search-wrapper {
+    width: 100%;
+    max-width: 700px; /* This makes the search bar nice and wide! */
+    margin: 20px 0 40px 0; /* Adds spacing above and below the bar */
+    padding: 0 20px; /* Prevents it from touching the edges on mobile screens */
+}

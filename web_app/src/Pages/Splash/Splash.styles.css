@@ -1,0 +1,25 @@
+/* Page CSS */
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;     /* Centers everything horizontally */
+    justify-content: center; /* Centers everything vertically */
+    min-height: 100vh;       /* Takes up the full height of the screen */
+    width: 100%;             /* Takes up the full width */
+    margin: 0;
+    padding: 0;
+}
+
+nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;     /* Centers the buttons inside the nav */
+    gap: 20px;               /* Exact space between the buttons */
+    width: 100%;
+    margin-top: 40px;        /* Space between the Title and the Buttons */
+}
+
+.title-txt {
+    margin: 0;
+    text-align: center;
+}

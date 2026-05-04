@@ -1,0 +1,82 @@
+.leaderboard-card {
+  display: flex;
+  flex-direction: row;       /* Everything sits side-by-side */
+  align-items: center;       /* Centers everything vertically */
+  width: 100%;
+  max-width: 800px;          /* Prevents it from being too wide on desktops */
+  background-color: #181818;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  gap: 16px;                 /* Space between image, text, and rank */
+}
+
+.leaderboard-card:hover {
+  background-color: #282828;
+}
+
+.leaderboard-rank {
+  margin: 0;
+  font-size: 20px;
+  color: #b3b3b3;
+  min-width: 40px;           /* Keeps numbers aligned if you go past #9 */
+}
+
+.leaderboard-image {
+  width: 56px;               /* Smaller, compact image */
+  height: 56px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.leaderboard-info {
+  flex: 1;                   /* THIS IS THE MAGIC! It pushes the icons to the right */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  overflow: hidden;          /* Prevents long text from breaking the layout */
+}
+
+.leaderboard-title {
+  margin: 0;
+  font-size: 16px;
+  color: #ffffff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.leaderboard-artist {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #b3b3b3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.leaderboard-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;                 /* Space between score and icons */
+}
+
+.leaderboard-score {
+  margin: 0;
+  font-size: 18px;
+  color: #ffffff;
+  min-width: 30px;
+  text-align: center;
+}
+
+.action-icon {
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.action-icon:hover {
+  transform: scale(1.2);     /* Nice little pop effect on hover */
+}

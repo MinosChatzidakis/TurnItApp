@@ -1,0 +1,23 @@
+/* Base Styles */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 250px;           /* Forces both buttons to be the exact same size */
+  padding: 15px 0;        /* Vertical height */
+  margin: 0;              /* CRITICAL: Removes the old 30px margin that was breaking it */
+  
+  border-radius: 500px; 
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.2s ease;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+/* Variants (Keep your existing color classes below this!) */
+.btn-primary { background-color: #1DB954; color: black; }
+.btn-primary:hover { background-color: #1ed760; }
