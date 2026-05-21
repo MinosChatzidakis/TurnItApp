@@ -38,6 +38,7 @@ function JoinSession() {
       `http://localhost:3000/sessions/active?codesOnly=${codesOnly}`,
     );
     const activeSessionCodes = await response.json();
+
     console.log(activeSessionCodes);
     return activeSessionCodes;
   };

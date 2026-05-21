@@ -1,26 +1,12 @@
 import { generateSecureHash } from "./hash";
 
-//!replace this when the time comes
-const sessions = [
-  {
-    code: 123,
-    owner: "MINOS_CHATZIDAKIS",
-    nicknames: ["nick", "name", "what"],
-  },
-  {
-    code: 456,
-    owner: "CHATZIDAKIS",
-    nicknames: ["nick2", "name2", "what2"],
-  },
-]; //proxeiri mlkia
-
 const getLocalStorage = () => {
   const existingDataStr = localStorage.getItem("sessionData");
   let existingData;
   if (existingDataStr) {
     existingData = JSON.parse(existingDataStr);
   }
-  return existingData;
+  return existingData; //return json
 };
 
 const writeToLocalStorage = (newSessionData) => {
@@ -29,37 +15,53 @@ const writeToLocalStorage = (newSessionData) => {
   console.log("Updated sessionData: ", dataStr);
 };
 
+//check if the username is available and if not, alter it a bit
+const checkUsernameAvailability = (selectedSession, cleanName) => {
+  //! maybe alter this to add device id check -- right now we are not even letting the owner in!
+  if (selectedSession?.owner === cleanName)
+    throw new Error("Invalid username (o), please try another one");
+  // !-------------------------
+  if (selectedSession?.nicknames.includes(cleanName))
+    //check if the name already exists
+    cleanName =
+      cleanName + "_" + (Math.floor(Math.random() * 90) + 10).toString();
+  return cleanName;
+};
+
+const getActiveSession = async (sessionCode) => {
+  const response = await fetch(
+    `hhtps://localhost:3000/sessions/code?sessionCode=${sessionCode}`,
+  );
+  const session = await response.json();
+  console.log(session);
+  return session;
+};
+
+const addNicknameToSession = async (sessionCode, nickname) => {
+  await fetch("https://localhost:3000/sessions/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionCode: sessionCode, nickname: nickname }),
+  });
+};
+
 export const joinSession = async (nickname, sessionCode) => {
   let cleanName = nickname?.trim();
   const cleanCode = sessionCode?.trim();
+  const sessionToJoin = getActiveSession(sessionCode);
 
   // Strict Validation
   if (!cleanName) throw new Error("Please choose a nickname first!");
   if (!cleanCode) throw new Error("Please enter a valid session code!");
 
-  //check if the username is available and if not, alter it a bit
-  const checkUsernameAvailability = () => {
-    const activeSession = sessions.find((s) => s.code.toString() === cleanCode);
-    //! maybe alter this to add device id check -- right now we are not even letting the owner in
-    if (activeSession?.owner === cleanName)
-      throw new Error("Invalid username, please try another one");
-    // !-------------------------
-    if (activeSession?.nicknames.includes(cleanName))
-      cleanName =
-        cleanName + "_" + (Math.floor(Math.random() * 90) + 10).toString();
-    return cleanName;
-  };
-
   // Check if the user is already in a session
-  //const existingDataStr = localStorage.getItem("sessionData");
   let userPrivateHash;
-  let newNickname = checkUsernameAvailability(); // what the user typed or the altered version
-  const existingData = getLocalStorage;
+  let newNickname = checkUsernameAvailability(sessionToJoin, cleanName); // what the user typed or the altered version
+  const existingData = getLocalStorage();
   if (existingData) {
-    //const existingData = JSON.parse(existingDataStr);
-
     userPrivateHash = await generateSecureHash(cleanName);
     if (
+      //if user has previously joined this session
       existingData.activeSessionCode === sessionCode &&
       existingData.name === newNickname
     )
@@ -79,7 +81,6 @@ export const joinSession = async (nickname, sessionCode) => {
 
   try {
     // Generate secret hash & save
-
     //store data to local storage
     const sessionData = {
       name: newNickname,
@@ -88,7 +89,9 @@ export const joinSession = async (nickname, sessionCode) => {
       //TODO: maybe track device id?
     };
 
-    localStorage.setItem("sessionData", JSON.stringify(sessionData));
+    localStorage.setItem("sessionData", JSON.stringify(sessionData)); //store in the client the session joined
+
+    addNicknameToSession(sessionCode, nickname);
 
     return sessionData;
   } catch (error) {
@@ -107,4 +110,15 @@ export const leaveSession = async (sessionCode, userHash) => {
     };
     writeToLocalStorage(newSessionData);
   }
+};
+
+export const createSession = async (newSession) => {
+  await fetch("https://localhost:3000/sessions/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionName: newSession.name,
+      sessionHost: newSession.owner,
+    }),
+  });
 };

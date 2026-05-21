@@ -19,7 +19,7 @@ export function useRouting() {
   };
 
   return {
-    routes: ROUTES, //unecessary
+    //routes: ROUTES, unecessary
     gotoPage,
   };
 }
