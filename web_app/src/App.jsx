@@ -6,6 +6,7 @@ import "./App.css";
 import { ErrorProvider } from "./Contexts/ErrorContext";
 import { SessionProvider } from "./Contexts/SessionContext";
 import HostSession from "./Pages/HostSession/HostSession";
+import HostDashboard from "./Pages/HostDashboard/HostDashboard";
 
 function App() {
   return (
@@ -16,9 +17,20 @@ function App() {
 
           <Routes>
             <Route path="/" element={<SplashPage />} />
-            <Route path="/join-session" element={<JoinSession />} />
-            <Route path="/suggest-songs" element={<SuggestSongs />} />
+            <Route
+              path="/join-session/:sessionCode?"
+              element={<JoinSession />}
+            />
+            <Route
+              path="/suggest-songs/:sessionCode?"
+              element={<SuggestSongs />}
+            />
             <Route path="/host-session" element={<HostSession />} />
+            <Route path="/host-session" element={<HostSession />} />
+            <Route
+              path="/host-dashboard/:sessionCode?"
+              element={<HostDashboard />}
+            />
           </Routes>
         </BrowserRouter>
       </SessionProvider>

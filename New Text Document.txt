@@ -1,0 +1,7 @@
+when creating a new session
+and then joining it with code
+i get Not found in sessionsmodel
+and in the web app i get sessionUtils.js:41 
+ POST http://localhost:3000/sessions/join 404 (Not Found)
+
+need to handle localstorage expiration - deleting it manually

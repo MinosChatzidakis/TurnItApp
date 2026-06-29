@@ -3,21 +3,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 250px;           /* Forces both buttons to be the exact same size */
-  padding: 15px 0;        /* Vertical height */
-  margin: 0;              /* CRITICAL: Removes the old 30px margin that was breaking it */
-  
-  border-radius: 500px; 
+  width: 250px; /* Forces both buttons to be the exact same size */
+  padding: 15px 0; /* Vertical height */
+  margin: 0; /* CRITICAL: Removes the old 30px margin that was breaking it */
+
+  border-radius: 500px;
   border: none;
   font-weight: bold;
   cursor: pointer;
-  transition: transform 0.1s ease, background-color 0.2s ease;
+  transition:
+    transform 0.1s ease,
+    background-color 0.2s ease;
+}
+/* Disabled State */
+.btn:disabled {
+  background-color: #555555; /* Faded grey background */
+  color: #a0a0a0; /* Faded text color */
+  cursor: not-allowed; /* Changes mouse to the 'stop' circle */
+  opacity: 0.7; /* Makes the whole button look a bit transparent */
 }
 
-.btn:active {
-  transform: scale(0.95);
+/* Kills the hover and click animations when disabled */
+.btn:disabled:hover {
+  background-color: #555555; /* Keeps it grey even if they hover */
 }
 
-/* Variants (Keep your existing color classes below this!) */
-.btn-primary { background-color: #1DB954; color: black; }
-.btn-primary:hover { background-color: #1ed760; }
+.btn:disabled:active {
+  transform: scale(1); /* Prevents the button from shrinking when clicked */
+}
+.btn-primary {
+  background-color: #1db954;
+  color: black;
+}

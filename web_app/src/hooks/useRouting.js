@@ -6,11 +6,16 @@ export function useRouting() {
   const navigate = useNavigate();
   const { clearError } = useError();
 
-  const gotoPage = (page) => {
-    const __page = page.toUpperCase();
+  const gotoPage = (page, param = "") => {
+    const __page = page.toUpperCase().trim();
+
     if (ROUTES[__page]) {
       clearError();
-      navigate(ROUTES[__page]);
+
+      // If a parameter is passed in, append it to the route. Otherwise, use the base route.
+      const targetUrl = param ? `${ROUTES[__page]}/${param}` : ROUTES[__page];
+
+      navigate(targetUrl);
     } else {
       console.log(
         `Cannot navigate to ${page}. Url not found. Try '_' instead of '-'. `,
@@ -19,7 +24,6 @@ export function useRouting() {
   };
 
   return {
-    //routes: ROUTES, unecessary
     gotoPage,
   };
 }

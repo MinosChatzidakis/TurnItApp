@@ -4,8 +4,9 @@ const activeSessionsController = require("../controllers/activeSessionsControlle
 
 // they all start with "/sessions"
 router.get("/active", activeSessionsController.getActiveSessions);
-router.get("code", activeSessionsController.getSessionByCode);
-router.post("join", activeSessionsController.joinSession);
-router.post("create", activeSessionsController.createSession);
+router.get("/code/:sessionCode", activeSessionsController.getSessionByCode);
+router.post("/join", activeSessionsController.joinSession);
+router.post("/create", activeSessionsController.createSession);
+router.post("/update/:sessionCode", activeSessionsController.updateSession);
 
 module.exports = router;

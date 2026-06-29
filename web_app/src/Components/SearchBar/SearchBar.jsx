@@ -1,11 +1,13 @@
 import "./SearchBar.styles.css";
 
 function SearchBar({
+  children,
   placeholderText,
   query = "",
-  setQuery,
+  setQuery = () => {},
   handleKeyDown = () => {},
-  onButtonClick = () => {}, // Added a new prop for the button
+  onButtonClick = () => {},
+  readOnly = false,
 }) {
   return (
     <div className="search-container">
@@ -16,10 +18,15 @@ function SearchBar({
         value={query}
         onChange={(e) => setQuery?.(e.target.value)}
         onKeyDown={handleKeyDown}
+        readOnly={readOnly}
       />
-      <button className="search-button" onClick={onButtonClick}>
-        OK
-      </button>
+      {/* only show the OK button if the user can edit the searchfield contents */}
+      {!readOnly && (
+        <button className="search-button" onClick={onButtonClick}>
+          OK
+        </button>
+      )}
+      {children}
     </div>
   );
 }

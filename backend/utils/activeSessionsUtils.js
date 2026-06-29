@@ -8,7 +8,7 @@ const chars = [
   "F",
   "G",
   "H",
-  //"I",
+  //"I", excluded as it's easily confused with another character
   "J",
   "K",
   //"L",

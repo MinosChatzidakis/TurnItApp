@@ -21,24 +21,25 @@ const checkUsernameAvailability = (selectedSession, cleanName) => {
   if (selectedSession?.owner === cleanName)
     throw new Error("Invalid username (o), please try another one");
   // !-------------------------
-  if (selectedSession?.nicknames.includes(cleanName))
+  if (selectedSession?.nicknames?.includes(cleanName))
     //check if the name already exists
     cleanName =
       cleanName + "_" + (Math.floor(Math.random() * 90) + 10).toString();
   return cleanName;
 };
 
-const getActiveSession = async (sessionCode) => {
+//get session by session code
+export const getActiveSession = async (sessionCode) => {
   const response = await fetch(
-    `hhtps://localhost:3000/sessions/code?sessionCode=${sessionCode}`,
+    `http://localhost:3000/sessions/code/${sessionCode}`,
   );
   const session = await response.json();
-  console.log(session);
+  console.log("Session found: ", session);
   return session;
 };
 
 const addNicknameToSession = async (sessionCode, nickname) => {
-  await fetch("https://localhost:3000/sessions/join", {
+  await fetch("http://localhost:3000/sessions/join", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionCode: sessionCode, nickname: nickname }),
@@ -48,7 +49,7 @@ const addNicknameToSession = async (sessionCode, nickname) => {
 export const joinSession = async (nickname, sessionCode) => {
   let cleanName = nickname?.trim();
   const cleanCode = sessionCode?.trim();
-  const sessionToJoin = getActiveSession(sessionCode);
+  const sessionToJoin = await getActiveSession(cleanCode);
 
   // Strict Validation
   if (!cleanName) throw new Error("Please choose a nickname first!");
@@ -113,7 +114,49 @@ export const leaveSession = async (sessionCode, userHash) => {
 };
 
 export const createSession = async (newSession) => {
-  await fetch("https://localhost:3000/sessions/create", {
+  try {
+    const response = await fetch("http://localhost:3000/sessions/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionName: newSession.name,
+        sessionHost: newSession.owner,
+      }),
+    });
+    return response;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const updateSession = async (newSession) => {
+  const sessionCode = newSession?.code;
+  if (!sessionCode) {
+    console.log("No session code inserted. Please try again.");
+    return;
+  }
+  console.log(sessionCode);
+  try {
+    const response = await fetch(
+      `http://localhost:3000/sessions/update/${sessionCode}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newSessionName: newSession.name,
+          newHostName: newSession.owner, //pass on the only fields that can be altered
+        }),
+      },
+    );
+    console.log("Successfully updated session");
+    return response;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const deleteSession = async (sessionCode) => {
+  const response = await fetch("", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

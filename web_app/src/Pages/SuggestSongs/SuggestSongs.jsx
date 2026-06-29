@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+//TODO: maybe add a "now playing feature?"
+import React, { useState, useEffect } from "react";
 import SearchBar from "../../Components/SearchBar/SearchBar";
 import Button from "../../Components/SimpleButton/Button";
 import SongCard from "../../Components/SongCard/SongCard";
@@ -6,17 +7,58 @@ import LeaderboardCard from "../../Components/SongCard/SongCard_v2";
 import "./SuggestSongs.styles.css";
 import { useError } from "../../Contexts/ErrorContext";
 import AsyncSelect from "react-select/async";
-import { leaveSession } from "../../utils/sessionUtils";
+import { leaveSession, getActiveSession } from "../../utils/sessionUtils";
 import { useRouting } from "../../hooks/useRouting";
+import { useParams } from "react-router-dom";
 
 function SuggestSongs() {
   const [likedSongs, setLikedSongs] = useState([]);
   const [dislikedSongs, setDislikedSongs] = useState([]);
   const [suggestedSongs, setSuggestedSongs] = useState([]);
-  const currStor = localStorage.getItem("activeSessionData");
+  const [joinedSession, setJoinedSession] = useState();
+  const currStor = localStorage.getItem("sessionData"); //get local storage
   const currStor_JSON = JSON.parse(currStor);
   const { error, setError } = useError();
   const { gotoPage } = useRouting();
+
+  const { sessionCode: urlSessionCode } = useParams(); //get the code from the url
+
+  const currStorage = localStorage.getItem("sessionData");
+  let jsonStorage;
+  if (currStorage) {
+    jsonStorage = JSON.parse(currStorage);
+  }
+
+  // Initialize your state using the URL code first, then fallback to local storage, then to empty string
+  const [sessionCode, setSessionCode] = useState(
+    urlSessionCode || jsonStorage?.activeSessionCode || "",
+  );
+
+  // null = loading, true = valid, false = invalid
+  const [isValidSession, setIsValidSession] = useState(null);
+
+  useEffect(() => {
+    const verifyCode = async () => {
+      if (!sessionCode) {
+        setIsValidSession(false); //no code => invalid
+        return;
+      }
+
+      try {
+        const sessionData = await getActiveSession(sessionCode); //check if it valid
+        if (sessionData && !sessionData.error) {
+          setIsValidSession(true); //it exists => valid
+          setJoinedSession(sessionData);
+        } else {
+          setIsValidSession(false); //it doesn't => invalid
+        }
+      } catch (err) {
+        setIsValidSession(false);
+      }
+    };
+
+    verifyCode();
+  }, [sessionCode]); // run every time sessionCode changes
 
   const getctiveSessionCodes = () => {};
 
@@ -63,16 +105,6 @@ function SuggestSongs() {
     }
   };
 
-  /*     // handle enter press
-    const handleKeyDown= (event) => {
-        if (event.key === 'Enter') {
-            if(searchTerm!== ''){
-                console.log('Searching for:', searchTerm);
-            }
-            searchSong()
-        };
-    } */
-
   const addToLiked = (songId) => {
     setLikedSongs((prev) => [...prev, songId]); //add liked song
     setSuggestedSongs((prev) =>
@@ -80,7 +112,7 @@ function SuggestSongs() {
         song.id === songId ? { ...song, score: song.score + 1 } : song,
       ),
     );
-    dislikedSongs.includes(songId) && removeFromDisliked(songId);
+    dislikedSongs?.includes(songId) && removeFromDisliked(songId);
   };
 
   const removeFromLiked = (songId) => {
@@ -93,7 +125,7 @@ function SuggestSongs() {
   };
 
   const onLike = (songId) => {
-    if (likedSongs.includes(songId)) {
+    if (likedSongs?.includes(songId)) {
       // already liked
       removeFromLiked(songId); //remove liked song
     } else {
@@ -108,7 +140,7 @@ function SuggestSongs() {
         song.id === songId ? { ...song, score: song.score - 1 } : song,
       ),
     );
-    likedSongs.includes(songId) && removeFromLiked(songId);
+    likedSongs?.includes(songId) && removeFromLiked(songId);
   };
 
   const removeFromDisliked = (songId) => {
@@ -121,7 +153,7 @@ function SuggestSongs() {
   };
 
   const onDislike = (songId) => {
-    if (dislikedSongs.includes(songId)) {
+    if (dislikedSongs?.includes(songId)) {
       // already disliked
       removeFromDisliked(songId);
     } else {
@@ -145,7 +177,6 @@ function SuggestSongs() {
 
   // custom styles for the options in the search component
   const customStyles = {
-    // 🚨 ADD THIS NEW BLOCK AT THE VERY TOP 🚨
     container: (provided) => ({
       ...provided,
       width: "100%",
@@ -214,10 +245,10 @@ function SuggestSongs() {
     }),
   };
 
-  return (
-    /* *localStorage.sessionCode = context.code && the rest* */
+  return isValidSession ? (
     <div className="container">
-      <h1>MINOS' S BANGER PARTY</h1>
+      <h1>{joinedSession?.name}</h1>
+      <h1>{currStor_JSON?.activeSessionCode}</h1>
       <h1>{currStor_JSON?.name}</h1>
       {/* search songs component */}
       <AsyncSelect
@@ -242,8 +273,8 @@ function SuggestSongs() {
           .sort((a, b) => b.score - a.score)
           .map((song, index) => {
             //sort by score
-            const songIsLiked = likedSongs.includes(song.id); // check if song is liked
-            const songIsDisliked = dislikedSongs.includes(song.id); // check if song is disliked
+            const songIsLiked = likedSongs?.includes(song.id); // check if song is liked
+            const songIsDisliked = dislikedSongs?.includes(song.id); // check if song is disliked
 
             return (
               <LeaderboardCard
@@ -270,6 +301,20 @@ function SuggestSongs() {
       >
         LEAVE SESSION
       </Button>
+    </div>
+  ) : (
+    <div style={{ textAlign: "center" }}>
+      Invalid session code.{" "}
+      <span
+        onClick={() => gotoPage("Splash")}
+        style={{
+          color: "blue",
+          textDecoration: "underline",
+          cursor: "pointer",
+        }}
+      >
+        Return to the home page
+      </span>
     </div>
   );
 }

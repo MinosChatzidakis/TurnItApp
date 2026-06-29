@@ -6,10 +6,13 @@ import "./JoinSession.styles.css";
 import { useRouting } from "../../hooks/useRouting";
 import { useError } from "../../Contexts/ErrorContext";
 import { joinSession } from "../../utils/sessionUtils";
+import { useParams } from "react-router-dom";
 
 function JoinSession() {
   const { gotoPage } = useRouting();
   const { setError } = useError();
+
+  const { sessionCode: urlSessionCode } = useParams(); //if given in the url, we store it in the normal state variable and just auto-fill the field
 
   const currStorage = localStorage.getItem("sessionData");
   let jsonStorage;
@@ -17,10 +20,15 @@ function JoinSession() {
     jsonStorage = JSON.parse(currStorage);
   }
 
+  // Initialize your state using the URL code first, then fallback to local storage, then to empty string
   const [sessionCode, setSessionCode] = useState(
-    jsonStorage?.activeSessionCode || "",
+    urlSessionCode || jsonStorage?.activeSessionCode || "",
   );
-  const [nickname, setNickname] = useState(jsonStorage?.name || "");
+
+  /*   const [sessionCode, setSessionCode] = useState(
+    jsonStorage?.activeSessionCode || "",
+  ); */
+  const [nickname, setNickname] = useState(jsonStorage?.name || ""); //fetch it if it exists
 
   const handleKeyDown = (event) => {
     // handle enter press
@@ -38,13 +46,15 @@ function JoinSession() {
       `http://localhost:3000/sessions/active?codesOnly=${codesOnly}`,
     );
     const activeSessionCodes = await response.json();
-
-    console.log(activeSessionCodes);
+    if (!activeSessionCodes) {
+      console.log("No session found.");
+      return null;
+    }
+    console.log("active sessions codes:", activeSessionCodes);
     return activeSessionCodes;
   };
 
   const searchForSessionCode = async () => {
-    const activeSessionCodes = await getActiveSessions(true);
     if (!sessionCode) {
       setError("Enter a session code to proceed!");
       return;
@@ -53,7 +63,8 @@ function JoinSession() {
       setError("Enter a username to proceed!");
       return;
     }
-    if (activeSessionCodes.includes(sessionCode.toString().trim())) {
+    const activeSessionCodes = await getActiveSessions(true);
+    if (activeSessionCodes?.includes(sessionCode.toString().trim())) {
       // checks if the code is active
       try {
         const res = await joinSession(nickname, sessionCode); //hash the nickname and store it into localStorage
@@ -61,7 +72,7 @@ function JoinSession() {
         setError(e.message);
         return;
       }
-      gotoPage("Suggest_Songs"); //enter session
+      gotoPage("Suggest_Songs", sessionCode); //enter session
     } else {
       setError("Session code not found");
       console.log("Session not found in database");

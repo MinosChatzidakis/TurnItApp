@@ -4,6 +4,7 @@ import { useSession } from "../../Contexts/SessionContext";
 import SearchBar from "../../Components/SearchBar/SearchBar";
 import Button from "../../Components/SimpleButton/Button";
 import { createSession } from "../../utils/sessionUtils";
+import { useRouting } from "../../hooks/useRouting";
 function HostSession() {
   //const { code: sessionCode } = useSession();
   const [newSession, setNewSession] = useState({
@@ -11,6 +12,21 @@ function HostSession() {
     owner: "",
     code: "",
   });
+
+  const { gotoPage } = useRouting();
+
+  const createNewSession = async (newSession) => {
+    const res = await createSession(newSession);
+    const data = await res?.json();
+    if (!data) {
+      console.log("Error in creating session.");
+      return;
+    }
+    const generatedCode = data.code;
+    console.log("Created session with code: ", generatedCode);
+    setNewSession((prev) => ({ ...prev, code: generatedCode }));
+    gotoPage("HOST_DASHBOARD", generatedCode); // move to dashboard for this session
+  };
 
   const updateNewSessionName = (newName) =>
     setNewSession((prev) => ({ ...prev, name: newName }));
@@ -37,10 +53,12 @@ function HostSession() {
       <SearchBar
         placeholderText={"Select a nickname..."}
         query={newSession.owner}
-        setQuery={(name) => updateNewSessionName(name)}
+        setQuery={(owner) => updateNewSessionOwner(owner)}
       />
 
-      <Button onClick={() => createSession(newSession)}>CREATE SESSION</Button>
+      <Button onClick={() => createNewSession(newSession)}>
+        CREATE SESSION
+      </Button>
     </div>
   );
 }
