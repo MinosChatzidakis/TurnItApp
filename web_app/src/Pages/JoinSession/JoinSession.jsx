@@ -25,9 +25,6 @@ function JoinSession() {
     urlSessionCode || jsonStorage?.activeSessionCode || "",
   );
 
-  /*   const [sessionCode, setSessionCode] = useState(
-    jsonStorage?.activeSessionCode || "",
-  ); */
   const [nickname, setNickname] = useState(jsonStorage?.name || ""); //fetch it if it exists
 
   const handleKeyDown = (event) => {
@@ -37,14 +34,19 @@ function JoinSession() {
         console.log("Searching for:", sessionCode);
       }
 
-      searchForSessionCode(); // Search database for code
+      joinSessionWithCode(); // Search database for code
     }
   };
 
+  //TODO move all of this logic to the backend
   const getActiveSessions = async (codesOnly = false) => {
     const response = await fetch(
       `http://localhost:3000/sessions/active?codesOnly=${codesOnly}`,
     );
+    if (!response.ok) {
+      console.log("No session found.");
+      return null;
+    }
     const activeSessionCodes = await response.json();
     if (!activeSessionCodes) {
       console.log("No session found.");
@@ -54,29 +56,36 @@ function JoinSession() {
     return activeSessionCodes;
   };
 
-  const searchForSessionCode = async () => {
+  const joinSessionWithCode = async () => {
     if (!sessionCode) {
       setError("Enter a session code to proceed!");
       return;
     }
     if (!nickname) {
-      setError("Enter a username to proceed!");
+      setError("Enter a nickname to proceed!");
       return;
     }
-    const activeSessionCodes = await getActiveSessions(true);
-    if (activeSessionCodes?.includes(sessionCode.toString().trim())) {
-      // checks if the code is active
-      try {
-        const res = await joinSession(nickname, sessionCode); //hash the nickname and store it into localStorage
-      } catch (e) {
-        setError(e.message);
-        return;
-      }
-      gotoPage("Suggest_Songs", sessionCode); //enter session
-    } else {
-      setError("Session code not found");
-      console.log("Session not found in database");
+    //this can be bypassed by removing this code and
+    const existingSession = JSON.parse(localStorage.getItem("sessionData"));
+    if (existingSession && existingSession.activeSessionCode !== sessionCode) {
+      //allow user to join the session they are already part of but not a new one
+      setError(
+        `You have already joined session: ${existingSession.activeSessionCode}`,
+      );
+      return;
     }
+
+    try {
+      const res = await joinSession(nickname, sessionCode); //try to join session
+      if (!res.ok) {
+        setError("Session code not found");
+        console.log("Session not found in database");
+      }
+    } catch (e) {
+      setError(e.message);
+      return;
+    }
+    gotoPage("Suggest_Songs", sessionCode); //enter session
   };
   return (
     <div className="container">
@@ -93,15 +102,13 @@ function JoinSession() {
           setQuery={setSessionCode}
           handleKeyDown={handleKeyDown}
         />
-
         <SearchBar
           placeholderText={jsonStorage?.name || "Choose a nickname..."}
           query={nickname}
           setQuery={setNickname}
           handleKeyDown={handleKeyDown}
         />
-
-        <Button onClick={searchForSessionCode}>GO</Button>
+        <Button onClick={joinSessionWithCode}>GO</Button>
         <Button onClick={() => gotoPage("Splash")}>BACK</Button>
       </div>
     </div>

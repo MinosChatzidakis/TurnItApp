@@ -1,11 +1,17 @@
 const sessionsModel = require("../models/activeSessionsModel");
-const { generateSessionCode } = require("../utils/activeSessionsUtils");
+const {
+  generateSessionCode,
+  generateSecureHash,
+} = require("../utils/hashingUtils");
 
 const getActiveSessions = async (req, res) => {
   const codesOnly = req.query.codesOnly;
   try {
     const data = await sessionsModel.getActiveSessions();
-    if (data.length === 0) return res.status(200).json([]);
+    if (data.length === 0) {
+      console.log("active sessions not found");
+      return res.status(200).json([]); //no sessions found
+    }
     let finalData;
     if (codesOnly === "false") {
       //req.params only contains strings
@@ -15,14 +21,14 @@ const getActiveSessions = async (req, res) => {
         participants: session.nicknames,
       }));
     } else if (codesOnly === "true") {
-      finalData = data.map((session) => session.code);
+      finalData = data.map((session) => session.code); //return only the codes of the active sessions
     } else {
-      console.log("codesOnly is neither true nor false!!");
+      console.log("codesOnly is neither true nor false!!"); //wtf
       throw new Error(
         "Invalid query entered (only true/false values permitted",
       );
     }
-    console.log(finalData);
+    console.log(`Found ${finalData.length} active sessions!`);
     res.status(200).json(finalData);
   } catch (err) {
     console.log("session controller error: ", err.message);
@@ -33,11 +39,15 @@ const getActiveSessions = async (req, res) => {
 };
 
 const getSessionByCode = async (req, res) => {
-  const sessionCode = req.params.sessionCode;
+  const sessionCode = req.params.sessionCode; //grab session code t use
   try {
-    const data = await sessionsModel.getSessionByCode(sessionCode);
-    if (!data) return res.status(404);
-    res.json(data);
+    const data = await sessionsModel.getSessionByCode(sessionCode); //fetch the correct session from the database
+    if (!data)
+      return res
+        .status(404) //session not found
+        .json({ message: `Session with code ${sessionCode} not found` });
+    console.log(`Session with code ${sessionCode} found`);
+    res.json(data); //return the session
   } catch (err) {
     console.log("controller error: ", err.message);
     res.status(500).json({
@@ -49,66 +59,153 @@ const getSessionByCode = async (req, res) => {
 
 const joinSession = async (req, res) => {
   const { sessionCode, nickname } = req.body;
+  let cleanName = nickname?.trim();
+  const cleanCode = sessionCode?.trim();
+  if (!cleanCode)
+    return res.status(400).json({ message: "Session code cannot be empty" });
+  if (!cleanName)
+    return res.status(400).json({ message: "Nickname cannot be empty" });
+
   try {
-    sessionsModel.joinSession(sessionCode, nickname);
+    //if a user has joined any previous sessions we cant do shit about that
+
+    //get active session
+    const selectedSession = await sessionsModel.getSessionByCode(cleanCode); //get the session with code
+    if (!selectedSession)
+      //nothing found
+      return res
+        .status(404)
+        .json({ message: `Session with code ${cleanCode} not found` });
+    //check if the name already exists in said session
+    const nicknameExistsInSession = selectedSession?.participants?.some(
+      (element) => element.nickname === cleanName,
+    );
+    if (nicknameExistsInSession) {
+      //nickname exists :::: append a number and join with it
+      cleanName =
+        cleanName + "_" + (Math.floor(Math.random() * 90) + 10).toString();
+      console.log(
+        `${nickname} already exists in session. Joining as ${cleanName} instead.`,
+      );
+    }
+    //generate hash
+    const userHash = generateSecureHash(cleanName);
+    if (!userHash)
+      throw new Error({
+        message: `Failed to generate secure hash for user with nickname: ${cleanName}`,
+      });
+
+    sessionsModel.joinSession(cleanCode, cleanName, userHash); //join session
+
+    console.log(`Successfully joined session ${cleanCode} as ${cleanName}`);
+
+    return res.status(200).json({ hash: userHash, nickname: cleanName });
   } catch (err) {
-    throw new Error(`Couldn't add ${nickname} to session ${sessionCode}`);
     console.log(err);
+    throw new Error(`Couldn't add ${nickname} to session ${cleanCode}`);
   }
+  //todo check if the code and the name are ok
+  //todo check if the session exists
+  //todo check username availability
+  //todo generate hash
+  //todo return hash if successful join or an error object if unsuccessful
 };
 
 const createSession = async (req, res) => {
-  const { sessionName, sessionHost } = req.body; // look into the request body and not the url (req.params)
-  let unique = false;
-  let sessionCode;
-  let existingCode;
-  while (!unique) {
-    try {
+  const { sessionName, sessionHost } = req.body;
+
+  if (!sessionName || !sessionHost) {
+    return res.status(400).json({
+      error: "Missing information. Provide a name and a nickname.", //stuff missing
+    });
+  }
+
+  try {
+    let unique = false;
+    let sessionCode;
+
+    //generate and verify the code in the loop -- only
+    while (!unique) {
       sessionCode = generateSessionCode();
-      existingCode = await sessionsModel.getSessionByCode(sessionCode); // check if the code already exists //!this needs refactoring, only one query should be made to the database
-    } catch (error) {
-      if (error.response && error.response.status === 404) {
-        console.log("Item not found! Triggering the fallback action...");
+      const existingCode = await sessionsModel.getSessionByCode(sessionCode);
+
+      if (!existingCode) {
+        unique = true; // Breaks the loop safely!
       }
     }
-    if (!existingCode) unique = true;
-    try {
-      await sessionsModel.createSession(sessionName, sessionHost, sessionCode); // register new session
-      res.status(200).json({ code: sessionCode });
-    } catch (error) {
-      console.error(`Failed to create session: ${sessionName}`, error);
 
-      res
-        .status(500)
-        .json({ error: "Internal server error while creating session" });
-    }
+    // guaranteed unique code, create it
+    const hostHash = generateSecureHash();
+
+    await sessionsModel.createSession(
+      sessionName,
+      sessionHost,
+      hostHash,
+      sessionCode,
+    );
+
+    console.log(`Successfully created session with code: ${sessionCode}`);
+
+    return res.status(200).json({ code: sessionCode, hostHash: hostHash });
+  } catch (error) {
+    console.error(`Failed to create session: ${sessionName}`, error);
+    return res
+      .status(500)
+      .json({ error: "Internal server error while creating session" });
   }
 };
 
 const updateSession = async (req, res) => {
   const sessionCode = req.params.sessionCode;
-  const { newSessionName, newHostName } = req.body;
+  const { newSessionName, newHostName, hostToken } = req.body;
 
   // Protect against undefined before calling .trim()
-  if (!newSessionName || !newHostName) {
+  if (!newSessionName || !newHostName || !hostToken) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const pureName = newSessionName.trim();
-  const pureHost = newHostName.trim();
+  const pureName = newSessionName?.trim();
+  const pureHost = newHostName?.trim();
+  const pureToken = hostToken?.trim();
 
-  if (pureName === "" || pureHost === "") {
+  if (pureName === "" || pureHost === "" || pureToken === "") {
     return res.status(400).json({ error: "Fields cannot be empty strings" });
   }
 
   try {
+    const foundSession = await sessionsModel.getSessionByCode(sessionCode);
+    if (!foundSession) {
+      console.log(`no session found with code: ${sessionCode}`);
+      return res
+        .status(404)
+        .json({ message: `Session with code ${sessionCode} not found` });
+    }
+    const actualHash = foundSession?.host?.hash;
+    if (actualHash !== hostToken) {
+      //check if the token provided matches the expected one
+      console.log(
+        `Invalid host credentials.\nExpected: ${actualHash} but got: ${hostToken}`,
+      );
+      return res
+        .status(401)
+        .json({ errorMessage: "You are not authorised to end this session." });
+    }
+
+    //update session now that we know that the hash matches
+    console.log("Host indentified!");
     const data = await sessionsModel.updateSession(
       sessionCode,
       pureName,
       pureHost,
     );
-
-    return res.status(200).json({ message: "Session updated successfully!" });
+    console.log(
+      `Session ${sessionCode} updated successfully. New name: ${pureName} and new host: ${
+        pureHost
+      }`,
+    );
+    return res
+      .status(200)
+      .json({ message: "Session updated successfully!", session: data });
   } catch (e) {
     console.log("error in updating session:", sessionCode, ". Error:", e);
 
@@ -120,10 +217,38 @@ const updateSession = async (req, res) => {
   }
 };
 
+const endSession = async (req, res) => {
+  const { code, hash } = req.body;
+  try {
+    //check if a session with this characteristics exists
+    const foundSession = await sessionsModel.getSessionByCode(code);
+    if (!foundSession)
+      return res
+        .status(404)
+        .json({ message: `Session with code ${code} not found` });
+    const actualHash = foundSession?.host?.hash;
+    if (actualHash !== hash) {
+      console.log(
+        `Invalid host credentials.\nExpected: ${actualHash} but got: ${hash}`,
+      );
+      return res
+        .status(401)
+        .json({ errorMessage: "You are not authorised to end this session." });
+    }
+    // request is valid (hash matches) => remove session
+    console.log("Host identified!");
+    await sessionsModel.endSession(code);
+    return res.status(200).json({ message: "Session successfully ended." });
+  } catch (e) {
+    console.log("Failed to end session", e);
+  }
+};
+
 module.exports = {
   getActiveSessions,
   getSessionByCode,
   joinSession,
   createSession,
   updateSession,
+  endSession,
 };

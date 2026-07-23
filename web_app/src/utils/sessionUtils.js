@@ -1,5 +1,7 @@
 import { generateSecureHash } from "./hash";
+import { useError } from "../Contexts/ErrorContext";
 
+// get session data from local storage
 const getLocalStorage = () => {
   const existingDataStr = localStorage.getItem("sessionData");
   let existingData;
@@ -33,34 +35,57 @@ export const getActiveSession = async (sessionCode) => {
   const response = await fetch(
     `http://localhost:3000/sessions/code/${sessionCode}`,
   );
+  if (!response.ok)
+    throw new Error({
+      message: `Something went wrong while searching for session ${sessionCode}`,
+    });
   const session = await response.json();
   console.log("Session found: ", session);
   return session;
 };
 
 const addNicknameToSession = async (sessionCode, nickname) => {
-  await fetch("http://localhost:3000/sessions/join", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionCode: sessionCode, nickname: nickname }),
-  });
+  try {
+    await fetch("http://localhost:3000/sessions/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionCode: sessionCode, nickname: nickname }),
+    });
+  } catch (e) {
+    console.log(
+      `Could not add nickname ${nickname} to session: ${sessionCode}`,
+    );
+    return e; //propagate the error
+  }
 };
 
 export const joinSession = async (nickname, sessionCode) => {
-  let cleanName = nickname?.trim();
+  const cleanName = nickname?.trim();
   const cleanCode = sessionCode?.trim();
-  const sessionToJoin = await getActiveSession(cleanCode);
+  let response;
 
-  // Strict Validation
-  if (!cleanName) throw new Error("Please choose a nickname first!");
-  if (!cleanCode) throw new Error("Please enter a valid session code!");
-
-  // Check if the user is already in a session
-  let userPrivateHash;
-  let newNickname = checkUsernameAvailability(sessionToJoin, cleanName); // what the user typed or the altered version
+  try {
+    response = await fetch(`http://localhost:3000/sessions/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionCode: cleanCode, nickname: cleanName }),
+    });
+  } catch (e) {
+    console.log(e);
+  }
+  if (!response?.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      errorData?.message ||
+        "Couldn't find session to join. That might be because of an invalid code or because the host has ended the session.",
+    );
+  }
   const existingData = getLocalStorage();
+  //const existingData = localStorage.getItem("sessionData");
+  const { hash: userPrivateHash, nickname: newNickname } =
+    await response.json();
+  if (!userPrivateHash) throw new Error("Couldnt generate response");
   if (existingData) {
-    userPrivateHash = await generateSecureHash(cleanName);
     if (
       //if user has previously joined this session
       existingData.activeSessionCode === sessionCode &&
@@ -73,44 +98,27 @@ export const joinSession = async (nickname, sessionCode) => {
       );
   }
 
-  // Check if Crypto API is available
-  if (!window.crypto || !window.crypto.subtle) {
-    throw new Error(
-      "Secure hashing is not supported on this browser/connection.",
-    );
-  }
-
   try {
-    // Generate secret hash & save
+    // Generate secret response & save
     //store data to local storage
     const sessionData = {
       name: newNickname,
-      hash: userPrivateHash,
+      token: userPrivateHash,
       activeSessionCode: cleanCode,
-      //TODO: maybe track device id?
     };
 
     localStorage.setItem("sessionData", JSON.stringify(sessionData)); //store in the client the session joined
-
-    addNicknameToSession(sessionCode, nickname);
 
     return sessionData;
   } catch (error) {
     console.error("Session creation failed:", error);
     throw new Error("Could not save session to your device.");
-    //throw new Error("Failed to register username.");
   }
 };
 
 export const leaveSession = async (sessionCode, userHash) => {
-  const existingData = getLocalStorage();
-  if (existingData) {
-    const newSessionData = {
-      ...existingData,
-      activeSessionCode: "",
-    };
-    writeToLocalStorage(newSessionData);
-  }
+  //let the backend know
+  localStorage.removeItem("sessionData"); //remove from the device
 };
 
 export const createSession = async (newSession) => {
@@ -129,39 +137,68 @@ export const createSession = async (newSession) => {
   }
 };
 
-export const updateSession = async (newSession) => {
-  const sessionCode = newSession?.code;
+export const updateSession = async (sessionCode, newSession, hostToken) => {
   if (!sessionCode) {
     console.log("No session code inserted. Please try again.");
-    return;
+    throw new Error("Missing session code.");
   }
-  console.log(sessionCode);
+
+  console.log(`Session to update: ${sessionCode}`);
+
   try {
     const response = await fetch(
-      `http://localhost:3000/sessions/update/${sessionCode}`,
+      `http://localhost:3000/sessions/update/${sessionCode}`, //req.params
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          newSessionName: newSession.name,
-          newHostName: newSession.owner, //pass on the only fields that can be altered
+          //req.body
+          newSessionName: newSession?.name,
+          newHostName: newSession?.host?.nickname, // Added optional chaining for safety
+          hostToken: hostToken,
         }),
       },
     );
+
+    if (!response.ok) {
+      console.log("Couldn't update");
+      throw new Error("Server responded with an error while updating.");
+    }
+
     console.log("Successfully updated session");
     return response;
   } catch (error) {
-    console.log(error);
+    console.error("Update session failed:", error);
+    throw error; // Re-throw so HostDashboard knows the save failed!
   }
 };
 
-export const deleteSession = async (sessionCode) => {
-  const response = await fetch("", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionName: newSession.name,
-      sessionHost: newSession.owner,
-    }),
-  });
+export const endSession = async (sessionCode, userHash) => {
+  const cleanCode = sessionCode?.trim();
+  const cleanHash = userHash?.trim();
+
+  if (!cleanCode || !cleanHash) {
+    throw new Error("Missing session code or host token. Cannot end session.");
+  }
+
+  const response = await fetch(
+    `http://localhost:3000/sessions/${sessionCode}`,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: cleanCode,
+        hash: cleanHash,
+      }),
+    },
+  );
+
+  // If the server responded with an error status (400, 403, 404, 500)
+  if (!response.ok) {
+    // Try to read the exact JSON error sent by Express
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Server refused to end the session.");
+  }
+
+  return true; // Successfully deleted!
 };

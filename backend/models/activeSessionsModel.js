@@ -1,81 +1,75 @@
-//! replace this with db logic to fetch actual current sessions
-let activeSessions = []; //proxeiri mlkia
+const Session = require("../Session");
 
 const getActiveSessions = async () => {
-  return activeSessions;
+  return await Session.find({ isActive: true });
 };
 
 const getSessionByCode = async (code) => {
-  const selectedSession = activeSessions?.find((s) => s.code === code);
-  if (selectedSession) return selectedSession;
-  else {
-    console.log(`Session ${code} Not found in sessionsmodel`);
-    return null;
-  }
-  throw new Error("Model error: Couldn't get session with code", code);
+  // If not found, it returns null. The controller will handle the null.
+  return await Session.findOne({ code: code, isActive: true });
 };
 
-//!! this has to change -- right now it works with the local dummy arrays
-const joinSession = async (code, newUser) => {
-  try {
-    const i = activeSessions.findIndex((s) => s.code === code); // locate index of session user wishes to join
-    //const hashedNickname = hashingAlgorithm(newUser);
-    prevState = activeSessions[i];
-    activeSessions[i] = {
-      ...prevState,
-      participants: [...prevState.participants, newUser], //** add hashed nickname to session instead of regular nickname
-    };
-    console.log("Joined session. All sessions:", activeSessions);
-  } catch (err) {
-    console.log(err);
+const joinSession = async (code, nickname, hash) => {
+  const updatedSession = await Session.findOneAndUpdate(
+    { code: code, isActive: true },
+    { $addToSet: { participants: { nickname, hash } } },
+    { returnDocument: true },
+  );
+
+  if (!updatedSession) {
+    const error = new Error(`Cannot join: Session ${code} not found.`);
+    error.status = 404;
+    throw error;
   }
+
+  return updatedSession;
 };
 
-const createSession = async (name, host, code) => {
-  activeSessions = [
-    ...activeSessions,
-    {
-      code: code,
-      name: name,
-      owner: host,
-      participants: [],
+const createSession = async (name, host, hostHash, code) => {
+  // If Mongoose validation fails (e.g., missing code), it automatically throws here
+  return await Session.create({
+    code: code,
+    name: name,
+    host: {
+      nickname: host,
+      hash: hostHash,
     },
-  ];
-  console.log("Created new session: ", activeSessions);
-  return;
+  });
 };
 
-//update session's name / owner's nams
 const updateSession = async (code, newSessionName, newHostName) => {
-  try {
-    const idx = activeSessions.findIndex((s) => s.code === code);
-
-    if (idx === -1) {
-      // Throw a custom error object so the controller can catch it and read the status
-      const error = new Error(`No session found with code ${code}`);
-      error.status = 404;
-      throw error;
-    }
-
-    activeSessions[idx] = {
-      ...activeSessions[idx],
+  const updatedSession = await Session.findOneAndUpdate(
+    { code: code },
+    {
       name: newSessionName,
-      owner: newHostName,
-    };
+      "host.nickname": newHostName,
+    },
+    { returnDocument: true },
+  );
 
-    console.log(
-      `Updated session with code: ${code}. New session name: ${activeSessions[idx].name}. New host: ${activeSessions[idx].owner}`,
-    );
-
-    return activeSessions[idx]; // Return the updated data back to the controller
-  } catch (e) {
-    console.log(e);
-    // If it's already our custom 404 error, throw it up the chain
-    if (e.status === 404) throw e;
-
-    // if not, throw a generic 500 error
-    throw new Error(`Failed to update session with code ${code}`);
+  if (!updatedSession) {
+    const error = new Error(`No session found with code ${code}`);
+    error.status = 404;
+    throw error;
   }
+
+  return updatedSession;
+};
+
+const endSession = async (code) => {
+  //return await Session.deleteOne({ code: code });
+  const updatedSession = await Session.findOneAndUpdate(
+    { code: code },
+    { $set: { isActive: false } },
+    { returnDocument: true },
+  );
+  if (!updatedSession) {
+    const error = new Error(`Cannot end: Session ${code} not found.`);
+    error.status = 404;
+    throw error;
+  }
+
+  return updatedSession;
 };
 
 module.exports = {
@@ -84,4 +78,5 @@ module.exports = {
   createSession,
   joinSession,
   updateSession,
+  endSession,
 };

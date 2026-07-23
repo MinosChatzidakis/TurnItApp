@@ -1,4 +1,5 @@
 //TODO: maybe add a "now playing feature?"
+//TODO when suggestions, likes etc get sent to the backend then we check if the user has joined the session
 import React, { useState, useEffect } from "react";
 import SearchBar from "../../Components/SearchBar/SearchBar";
 import Button from "../../Components/SimpleButton/Button";
@@ -46,7 +47,7 @@ function SuggestSongs() {
 
       try {
         const sessionData = await getActiveSession(sessionCode); //check if it valid
-        if (sessionData && !sessionData.error) {
+        if (sessionData && !sessionData?.error) {
           setIsValidSession(true); //it exists => valid
           setJoinedSession(sessionData);
         } else {
@@ -249,7 +250,6 @@ function SuggestSongs() {
     <div className="container">
       <h1>{joinedSession?.name}</h1>
       <h1>{currStor_JSON?.activeSessionCode}</h1>
-      <h1>{currStor_JSON?.name}</h1>
       {/* search songs component */}
       <AsyncSelect
         loadOptions={loadOptions}
@@ -259,7 +259,7 @@ function SuggestSongs() {
           IndicatorSeparator: () => null, //no separator
         }}
         styles={customStyles}
-        placeholder="What do you want to listen to?"
+        placeholder={`What do you want to listen to, ${currStor_JSON?.name}?`}
         value={null}
         cacheOptions // Memorizes searches to save API calls
         onChange={(selectedItem) => handleSelectSong(selectedItem.value)} //When they pick a song, runs your function
@@ -304,16 +304,20 @@ function SuggestSongs() {
     </div>
   ) : (
     <div style={{ textAlign: "center" }}>
-      Invalid session code.{" "}
+      Couldn't find session. This might be due to a wrong code or because the
+      host has ended the session
       <span
-        onClick={() => gotoPage("Splash")}
+        onClick={() => {
+          localStorage.removeItem("sessionData"); //so that the user is not prompted to continue
+          gotoPage("Splash");
+        }}
         style={{
           color: "blue",
           textDecoration: "underline",
           cursor: "pointer",
         }}
       >
-        Return to the home page
+        Return to home page
       </span>
     </div>
   );

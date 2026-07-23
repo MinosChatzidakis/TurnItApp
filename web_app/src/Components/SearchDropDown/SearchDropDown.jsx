@@ -6,6 +6,7 @@ const loadOptions = async (inputValue) => {
   const response = await fetch(
     `http://localhost:3000/songs/search?q=${inputValue}`,
   );
+  if (!response.ok) throw new Error("Could not load options");
   const data = await response.json();
 
   // react-select requires data to have 'value' and 'label' properties
