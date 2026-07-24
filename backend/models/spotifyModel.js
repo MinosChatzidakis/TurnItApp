@@ -6,7 +6,7 @@ let tokenExpirationTime = null;
 const getSpotifyToken = async () => {
   // 2. Check if we already have a token AND if the current time is before it expires
   if (cachedToken && Date.now() < tokenExpirationTime) {
-    console.log("Using existing token! 🏎️");
+    console.log("Using existing spotify token!");
     return cachedToken; // Skip the network request and instantly return the token!
   }
 

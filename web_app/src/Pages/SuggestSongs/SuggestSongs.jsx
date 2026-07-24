@@ -291,7 +291,6 @@ function SuggestSongs() {
           })}
       </div>
 
-      {/* //!!! CONTINUE HERE */}
       {/* add a check to see if user has joined this session*/}
       <Button
         onClick={() => {
