@@ -8,7 +8,11 @@ import LeaderboardCard from "../../Components/SongCard/SongCard_v2";
 import "./SuggestSongs.styles.css";
 import { useError } from "../../Contexts/ErrorContext";
 import AsyncSelect from "react-select/async";
-import { leaveSession, getActiveSession } from "../../utils/sessionUtils";
+import {
+  leaveSession,
+  getActiveSession,
+  addSuggestion,
+} from "../../utils/sessionUtils";
 import { useRouting } from "../../hooks/useRouting";
 import { useParams } from "react-router-dom";
 
@@ -63,13 +67,22 @@ function SuggestSongs() {
 
   const getctiveSessionCodes = () => {};
 
-  const handleSelectSong = (song) => {
-    console.log("Added: ", song);
+  //todo replace this with actual logic which communicates with the backend
+  const suggestSong = (song) => {
+    try {
+      console.log(song);
+      //addSuggestion(sessionCode, currStor_JSON.token, song);
+    } catch (e) {
+      console.log("An error occured and we couldn't suggest your song");
+      setError(e);
+    }
+
     if (suggestedSongs.some((currentItem) => currentItem.id === song.id)) {
       setError("Song is already suggested. You can vote for it!");
       return;
     }
     setSuggestedSongs((prev) => [...prev, { ...song, score: 0 }]); //initialise score as 0
+    console.log("Added: ", song);
   };
 
   // safely fetch spotify songs
@@ -262,7 +275,7 @@ function SuggestSongs() {
         placeholder={`What do you want to listen to, ${currStor_JSON?.name}?`}
         value={null}
         cacheOptions // Memorizes searches to save API calls
-        onChange={(selectedItem) => handleSelectSong(selectedItem.value)} //When they pick a song, runs your function
+        onChange={(selectedItem) => suggestSong(selectedItem.value)} //When they pick a song, runs your function
       />
 
       {/* render already suggested songs */}
@@ -275,7 +288,6 @@ function SuggestSongs() {
             //sort by score
             const songIsLiked = likedSongs?.includes(song.id); // check if song is liked
             const songIsDisliked = dislikedSongs?.includes(song.id); // check if song is disliked
-
             return (
               <LeaderboardCard
                 key={`${index}_card`}

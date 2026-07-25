@@ -244,6 +244,39 @@ const endSession = async (req, res) => {
   }
 };
 
+const addSuggestion = async (req, res) => {
+  const sessionCode = req.params.sessionCode;
+  const { hash: participantToken, songSuggestion } = req.body;
+  if (!sessionCode || !participantToken || !songSuggestion) {
+    console.log("Can't suggest song (info is missing)");
+    return res.status(400).json({ error: "Bad Request - Missing info" }); //bad request if missing info
+  }
+  sessionCode = sessionCode.trim();
+  participantToken = participantToken.trim();
+  //check that the session is active
+  try {
+    const sess = await sessionsModel.getSessionByCode(sessionCode); //get session in which we are trying to add a suggestion
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ error: "" });
+  }
+  //check that the user is indeed in the session
+  const isInSession = sess?.participants?.some(
+    (element) => element.hash === participantToken,
+  );
+  if (!isInSession) {
+    return res.status(401).json({
+      error:
+        "Authentication failed: Token provided does could not be found in this session.",
+    });
+  }
+  //check that the song has not been already suggested
+  const songAlreadySuggested = sess?.suggestions.some(
+    (song) => song.songId === songSuggestion.id,
+  );
+  //
+};
+
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -251,4 +284,5 @@ module.exports = {
   createSession,
   updateSession,
   endSession,
+  addSuggestion,
 };

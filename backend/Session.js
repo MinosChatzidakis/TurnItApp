@@ -20,7 +20,8 @@ const sessionSchema = new mongoose.Schema(
 
     suggestions: [
       {
-        songName: { type: String, required: true },
+        songTitle: { type: String, required: true },
+        songId: { type: String, required: true },
         suggestedByHash: { type: String, required: true }, //participant hash
         suggestedAt: { type: Date, default: Date.now }, //automatic timestamp
         votes: { type: Number, default: 1 },

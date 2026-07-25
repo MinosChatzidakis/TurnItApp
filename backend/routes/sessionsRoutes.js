@@ -8,6 +8,7 @@ router.get("/code/:sessionCode", activeSessionsController.getSessionByCode);
 router.post("/join", activeSessionsController.joinSession);
 router.post("/create", activeSessionsController.createSession);
 router.post("/update/:sessionCode", activeSessionsController.updateSession);
+router.post("/suggest/:sessionCode", activeSessionsController.addSuggestion);
 router.delete("/:sessionCode", activeSessionsController.endSession);
 
 module.exports = router;

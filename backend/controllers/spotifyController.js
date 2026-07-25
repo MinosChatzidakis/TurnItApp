@@ -7,8 +7,10 @@ const searchSongs = async (req, res) => {
     const numberOfArtists = item.artists.length;
     return numberOfArtists === 1
       ? item.artists[0].name
-      : items.artists.reduce((acc, curr) => {
-          return (acc = acc = acc + ", " + curr.name);
+      : item.artists.reduce((acc, curr) => {
+          return acc.length === 0
+            ? (acc = acc + curr.name)
+            : (acc = acc = acc + ", " + curr.name);
         }, "");
   };
 
@@ -31,7 +33,7 @@ const searchSongs = async (req, res) => {
 
     console.log(finalSongs);
 
-    // Send it back to the View (React)
+    // Send it back
     res.status(200).json(finalSongs);
   } catch (error) {
     console.error("Controller Error:", error);

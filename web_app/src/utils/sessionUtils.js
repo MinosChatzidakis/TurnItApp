@@ -3,7 +3,7 @@ import { useError } from "../Contexts/ErrorContext";
 
 // get session data from local storage
 const getLocalStorage = () => {
-  const existingDataStr = localStorage.getItem("sessionData");
+  const existingDataStr = localStorage.getItem("sessionData"); //only for participants
   let existingData;
   if (existingDataStr) {
     existingData = JSON.parse(existingDataStr);
@@ -44,7 +44,7 @@ export const getActiveSession = async (sessionCode) => {
   return session;
 };
 
-const addNicknameToSession = async (sessionCode, nickname) => {
+/* const addNicknameToSession = async (sessionCode, nickname) => {
   try {
     await fetch("http://localhost:3000/sessions/join", {
       method: "POST",
@@ -57,7 +57,7 @@ const addNicknameToSession = async (sessionCode, nickname) => {
     );
     return e; //propagate the error
   }
-};
+}; */
 
 export const joinSession = async (nickname, sessionCode) => {
   const cleanName = nickname?.trim();
@@ -92,7 +92,10 @@ export const joinSession = async (nickname, sessionCode) => {
       existingData.name === newNickname
     )
       return existingData;
-    if (existingData.activeSessionCode)
+    if (
+      existingData?.activeSessionCode &&
+      existingData?.activeSessionCode !== sessionCode
+    )
       throw new Error(
         `You are already in a session as '${existingData.name}'! You can leave that session if you want to join a new one.`,
       );
@@ -173,9 +176,9 @@ export const updateSession = async (sessionCode, newSession, hostToken) => {
   }
 };
 
-export const endSession = async (sessionCode, userHash) => {
+export const endSession = async (sessionCode, hostHash) => {
   const cleanCode = sessionCode?.trim();
-  const cleanHash = userHash?.trim();
+  const cleanHash = hostHash?.trim();
 
   if (!cleanCode || !cleanHash) {
     throw new Error("Missing session code or host token. Cannot end session.");
@@ -201,4 +204,32 @@ export const endSession = async (sessionCode, userHash) => {
   }
 
   return true; // Successfully deleted!
+};
+
+export const addSuggestion = async (sessionCode, hash, suggestion) => {
+  //todo figure out suggestion format
+  if (!sessionCode || !userHash || !suggestion) {
+    throw new Error("Cannot complete song suggestion. Missing data");
+  }
+  sessionCode = sessionCode?.trim();
+  const cleanHash = hash?.trim();
+  const response = await fetch(
+    `http://localhost:3000/sessions/suggest/${sessionCode}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hash: cleanHash,
+        songSuggestion: suggestion,
+      }),
+    },
+  );
+  if (!response?.ok) {
+    error = (await response.json()).error; //extract error message
+    throw new Error(
+      error || "An error occured - Couldn't complete song suggestion",
+    );
+  }
+  console.log("Song suggested successfully.");
+  return;
 };
