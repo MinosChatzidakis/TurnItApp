@@ -72,6 +72,8 @@ const endSession = async (code) => {
   return updatedSession;
 };
 
+const addSuggestion = async (code, suggestion) => {};
+
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -79,4 +81,5 @@ module.exports = {
   joinSession,
   updateSession,
   endSession,
+  addSuggestion,
 };

@@ -53,6 +53,29 @@ const searchTracks = async (query) => {
   return await response.json();
 };
 
+const getSpecificTrack = async (songId) => {
+  const token = await getSpotifyToken();
+
+  const response = await fetch(`https://api.spotify.com/v1/tracks/${songId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    // Handle expired tokens, bad IDs, or rate limits
+    throw new Error(
+      `Spotify API Error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const songData = await response.json();
+  return songData;
+};
+
 module.exports = {
   searchTracks,
+  getSpecificTrack,
 };

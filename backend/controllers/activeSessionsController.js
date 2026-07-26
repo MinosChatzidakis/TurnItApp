@@ -3,6 +3,8 @@ const {
   generateSessionCode,
   generateSecureHash,
 } = require("../utils/hashingUtils");
+const { readFromCache } = require("../utils/songCachingUtils");
+const { getSongWithID } = require("../controllers/spotifyController");
 
 const getActiveSessions = async (req, res) => {
   const codesOnly = req.query.codesOnly;
@@ -246,8 +248,8 @@ const endSession = async (req, res) => {
 
 const addSuggestion = async (req, res) => {
   const sessionCode = req.params.sessionCode;
-  const { hash: participantToken, songSuggestion } = req.body;
-  if (!sessionCode || !participantToken || !songSuggestion) {
+  const { hash: participantToken, songId } = req.body;
+  if (!sessionCode || !participantToken || !songId) {
     console.log("Can't suggest song (info is missing)");
     return res.status(400).json({ error: "Bad Request - Missing info" }); //bad request if missing info
   }
@@ -265,15 +267,46 @@ const addSuggestion = async (req, res) => {
     (element) => element.hash === participantToken,
   );
   if (!isInSession) {
-    return res.status(401).json({
-      error:
-        "Authentication failed: Token provided does could not be found in this session.",
-    });
+    return res
+      .status(401) //authentication failed
+      .json({
+        error:
+          "Authentication failed: Token provided could not be found in this session.",
+      });
   }
   //check that the song has not been already suggested
   const songAlreadySuggested = sess?.suggestions.some(
-    (song) => song.songId === songSuggestion.id,
+    (song) => song.songId === songId,
   );
+  if (songAlreadySuggested) {
+    return res
+      .status(409) //conflict
+      .json({
+        error:
+          "This song has already been suggested! You can vote for it instead",
+      });
+  }
+
+  //get song object from cache based on id sent back
+  let songToSuggest;
+  let fetchedSong;
+  const cachedSong = readFromCache(songId);
+  if (!cachedSong) {
+    //fetch from spotify
+    fetchedSong = getSongWithID(songId);
+  } else {
+    //song was cached
+    cachedSong = cachedSong?.data;
+  }
+
+  const songToSuggest = cachedSong || fetchedSong; //prefer the cached one
+
+  //add suggestion to db
+  const suggestedSongs = await sessionsModel.addSuggestion(
+    sessionCode,
+    songToSuggest,
+  );
+
   //
 };
 
