@@ -32,8 +32,8 @@ const searchSongs = async (req, res) => {
       thumbnail: item.album.images[2]?.url || "https://via.placeholder.com/64",
     }));
 
-    console.log(`Songs found;\n${finalSongs}`);
-    console.log("Caching...");
+    console.log(`found;\n${finalSongs.length} song`);
+    console.log("Caching them...");
     writeToCache(finalSongs); //cache fetched songs
     // Send it back
 
@@ -52,7 +52,7 @@ const getSongWithID = async (songID) => {
   try {
     const foundSong = await spotifyModel.getSpecificTrack(songID);
     if (!foundSong) {
-      console.log(`Song with id ${songID} not found`);
+      console.log(`Song with id ${songID} not found in spotify`);
     }
     //convert to needed format
     //return final object -- this will be directly saved to db

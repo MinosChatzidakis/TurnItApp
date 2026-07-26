@@ -1,5 +1,3 @@
-import { useError } from "../Contexts/ErrorContext";
-
 // get session data from local storage
 const getLocalStorage = () => {
   const existingDataStr = localStorage.getItem("sessionData"); //only for participants
@@ -227,10 +225,43 @@ export const addSuggestion = async (sessionCode, userHash, suggestion) => {
     throw new Error(
       error || "An error occured - Couldn't complete song suggestion",
     );
+    return;
   }
 
-  const updatedSuggestions = await response.json(); //get the new suggestions
+  const jsonResponse = await response.json(); //get the new suggestions
+  const updatedSuggestions = jsonResponse.suggestionsList;
+  console.log("New suggestions: ", updatedSuggestions);
   if (!updatedSuggestions) throw new Error("Something went wrong");
-  console.log("Song suggested successfully.");
+  console.log("New list retrieved successfully.");
   return updatedSuggestions;
+};
+
+export const getSuggestions = async (sessionCode, userHash) => {
+  if (!sessionCode || !userHash) {
+    throw new Error("Cannot get suggestions, missing fields...");
+  }
+
+  const cleanHash = userHash.trim();
+  const cleanCode = sessionCode.trim();
+
+  try {
+    const response = await fetch(
+      `http://localhost:3000/sessions/suggestions/${cleanCode}?hash=${cleanHash}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to fetch suggestions");
+    }
+
+    const data = await response.json();
+    return data.currentSuggestions; //return the data
+  } catch (e) {
+    console.error(e);
+    throw e; // Always re-throw so the frontend UI knows it failed
+  }
 };

@@ -84,6 +84,53 @@ const addSuggestionToSession = async (sessionCode, newSongData) => {
   }
   return updatedSession;
 };
+
+const getSuggestionsWithNicknames = async (sessionCode, userHash) => {
+  const session = await Session.findOne({ code: sessionCode }).lean();
+
+  if (!session) {
+    throw new Error("Session not found");
+  }
+
+  // --- NEW SECURITY CHECK ---
+  // 1. Check if the hash matches the host
+  const isHost = session.host.hash === userHash;
+
+  // 2. Check if the hash belongs to any participant
+  const isParticipant = session.participants.some(
+    (participant) => participant.hash === userHash,
+  );
+
+  // 3. If they are neither, kick them out!
+  if (!isHost && !isParticipant) {
+    throw new Error("Unauthorized: User does not belong to this session");
+  }
+  // --------------------------
+
+  // If they pass the check, map the data as usual
+  const nicknameMap = new Map();
+  nicknameMap.set(session.host.hash, session.host.nickname);
+
+  session.participants.forEach((participant) => {
+    nicknameMap.set(participant.hash, participant.nickname);
+  });
+
+  const formattedSuggestions = session.suggestions.map((song) => {
+    return {
+      songId: song.songId,
+      songTitle: song.songTitle,
+      artists: song.artists,
+      thumbnail: song.thumbnail,
+      score: song.score,
+      suggestedAt: song.suggestedAt,
+      suggestedByNickname:
+        nicknameMap.get(song.suggestedByHash) || "Unknown User",
+    };
+  });
+
+  return formattedSuggestions;
+};
+
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -92,4 +139,5 @@ module.exports = {
   updateSession,
   endSession,
   addSuggestionToSession,
+  getSuggestionsWithNicknames,
 };

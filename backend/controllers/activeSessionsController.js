@@ -49,8 +49,17 @@ const getSessionByCode = async (req, res) => {
       return res
         .status(404) //session not found
         .json({ message: `Session with code ${sessionCode} not found` });
-    console.log(`Session with code ${sessionCode} found`);
-    res.json(data); //return the session
+    console.log(
+      `Session with code ${sessionCode} found. Constructing object to be returned to the frontend`,
+    );
+    const { code, name, suggestions } = data;
+    const ltdSession = {
+      //return a limited version of the session object
+      code,
+      name,
+      suggestions,
+    };
+    res.status(200).json(data); //return the session
   } catch (err) {
     console.log("controller error: ", err.message);
     res.status(500).json({
@@ -251,7 +260,6 @@ const addSuggestion = async (req, res) => {
   let sessionCode = req.params.sessionCode?.toUpperCase();
   let { hash: participantToken, songSuggestion: songId } = req.body;
   if (!sessionCode || !participantToken || !songId) {
-    console.log(sessionCode, participantToken, songId);
     console.log("Can't suggest song (info is missing)");
     return res.status(400).json({ error: "Bad Request - Missing info" }); //bad request if missing info
   }
@@ -303,7 +311,6 @@ const addSuggestion = async (req, res) => {
   }
 
   songToSuggest = cachedSong || fetchedSong; //prefer the cached one
-  console.log("Song to suggest:", songToSuggest);
 
   const finalSuggestionObject = {
     songId: songToSuggest.id,
@@ -311,16 +318,18 @@ const addSuggestion = async (req, res) => {
     artists: songToSuggest.artists,
     thumbnail: songToSuggest.thumbnail,
     suggestedByHash: participantToken,
-    votes: 0,
   };
 
   //add suggestion to db
   try {
-    const suggestedSongs = await sessionsModel.addSuggestionToSession(
+    const newSession = await sessionsModel.addSuggestionToSession(
       sessionCode,
       finalSuggestionObject,
-    )?.suggestions;
-    console.log("Successfully suggested song");
+    );
+    const suggestedSongs = newSession?.suggestions;
+    console.log(
+      `Successfully suggested song: ${songId} to session: ${sessionCode} by ${participantToken}`,
+    );
     return res.status(200).json({ suggestionsList: suggestedSongs }); //return the whole suggestion list
   } catch (e) {
     console.log("Error in suggesting songs: ", e);
@@ -332,6 +341,44 @@ const addSuggestion = async (req, res) => {
   //
 };
 
+const getSuggestions = async (req, res) => {
+  const sessionCode = req.params.sessionCode;
+
+  const userToken = req.query.hash;
+
+  if (!sessionCode || !userToken) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  const cleanCode = sessionCode.trim().toUpperCase();
+  const cleanToken = userToken.trim();
+
+  try {
+    const suggestions = await sessionsModel.getSuggestionsWithNicknames(
+      cleanCode,
+      cleanToken,
+    );
+
+    // 5. Always send a .json() payload, even with error statuses
+    if (!suggestions) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    return res.status(200).json({ currentSuggestions: suggestions });
+  } catch (error) {
+    console.log(error);
+
+    // Handle the specific Unauthorized error from our model
+    if (error.message.includes("Unauthorized")) {
+      return res.status(401).json({ error: error.message });
+    }
+
+    return res
+      .status(500)
+      .json({ error: "Server failed to fetch suggestions" });
+  }
+};
+
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -340,4 +387,5 @@ module.exports = {
   updateSession,
   endSession,
   addSuggestion,
+  getSuggestions,
 };

@@ -12,6 +12,7 @@ import {
   leaveSession,
   getActiveSession,
   addSuggestion,
+  getSuggestions,
 } from "../../utils/sessionUtils";
 import { useRouting } from "../../hooks/useRouting";
 import { useParams } from "react-router-dom";
@@ -65,25 +66,58 @@ function SuggestSongs() {
     verifyCode();
   }, [sessionCode]); // run every time sessionCode changes
 
-  const suggestSong = (song) => {
-    try {
-      console.log("Suggesting: ", song);
-      const newSuggestions = addSuggestion(
-        sessionCode,
-        currStor_JSON?.token,
-        song.id,
-      ); //send only the id back
-    } catch (e) {
-      console.log("An error occured and we couldn't suggest your song");
-      setError(e);
-    }
+  //update suggested songs
+  useEffect(() => {
+    const fetchSongs = async () => {
+      try {
+        const suggestions = await getSuggestions(
+          sessionCode,
+          currStor_JSON.token,
+        );
+        setSuggestedSongs(suggestions);
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
+    };
 
-    if (suggestedSongs.some((currentItem) => currentItem.id === song.id)) {
+    // 1. Fetch immediately so the user isn't staring at a blank screen for 5 seconds
+    fetchSongs();
+
+    // Creates a random interval between 10 and 15 seconds
+    const randomInterval = Math.floor(Math.random() * 10000) + 15000;
+
+    const intervalId = setInterval(() => {
+      fetchSongs();
+    }, randomInterval);
+
+    // If you don't do this, React will create a brand new interval every time the
+    // component re-renders, and your app will crash from doing 1,000 fetches a second.
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [sessionCode, currStor_JSON.token]);
+
+  const suggestSong = async (song) => {
+    //check if song has already been suggested
+    if (suggestedSongs.some((currentItem) => currentItem.id === song.songId)) {
       setError("Song is already suggested. You can vote for it!");
       return;
     }
-    setSuggestedSongs((prev) => [...prev, { ...song, score: 0 }]); //initialise score as 0
-    console.log("Added: ", song.id);
+    //suggest new song
+    try {
+      console.log("Suggesting: ", song);
+      const newSuggestionList = await addSuggestion(
+        sessionCode,
+        currStor_JSON?.token,
+        song.songId,
+      ); //send only the id back
+      //apply changes locally
+      setSuggestedSongs(newSuggestionList);
+      console.log("Added: ", song.songId);
+    } catch (e) {
+      console.log("An error occured and we couldn't suggest your song");
+      setError(e.message);
+    }
   };
 
   // safely fetch spotify songs
@@ -124,7 +158,7 @@ function SuggestSongs() {
     setLikedSongs((prev) => [...prev, songId]); //add liked song
     setSuggestedSongs((prev) =>
       prev.map((song) =>
-        song.id === songId ? { ...song, score: song.score + 1 } : song,
+        song.songId === songId ? { ...song, score: song.score + 1 } : song,
       ),
     );
     dislikedSongs?.includes(songId) && removeFromDisliked(songId);
@@ -134,7 +168,7 @@ function SuggestSongs() {
     setLikedSongs((prev) => prev.filter((item) => item !== songId)); //remove liked song
     setSuggestedSongs((prev) =>
       prev.map((song) =>
-        song.id === songId ? { ...song, score: song.score - 1 } : song,
+        song.songId === songId ? { ...song, score: song.score - 1 } : song,
       ),
     );
   };
@@ -152,7 +186,7 @@ function SuggestSongs() {
     setDislikedSongs((prev) => [...prev, songId]); //add disliked song
     setSuggestedSongs((prev) =>
       prev.map((song) =>
-        song.id === songId ? { ...song, score: song.score - 1 } : song,
+        song.songId === songId ? { ...song, score: song.score - 1 } : song,
       ),
     );
     likedSongs?.includes(songId) && removeFromLiked(songId);
@@ -162,7 +196,7 @@ function SuggestSongs() {
     setDislikedSongs((prev) => prev.filter((item) => item !== songId)); //remove disliked song
     setSuggestedSongs((prev) =>
       prev.map((song) =>
-        song.id === songId ? { ...song, score: song.score + 1 } : song,
+        song.songId === songId ? { ...song, score: song.score + 1 } : song,
       ),
     );
   };
@@ -285,16 +319,16 @@ function SuggestSongs() {
           .sort((a, b) => b.score - a.score)
           .map((song, index) => {
             //sort by score
-            const songIsLiked = likedSongs?.includes(song.id); // check if song is liked
-            const songIsDisliked = dislikedSongs?.includes(song.id); // check if song is disliked
+            const songIsLiked = likedSongs?.includes(song.songId); // check if song is liked
+            const songIsDisliked = dislikedSongs?.includes(song.songId); // check if song is disliked
             return (
               <LeaderboardCard
                 key={`${index}_card`}
                 rank={index + 1}
                 song={song}
                 onClick={() => console.log("Works")}
-                onLike={() => onLike(song.id)}
-                onDislike={() => onDislike(song.id)}
+                onLike={() => onLike(song.songId)}
+                onDislike={() => onDislike(song.songId)}
                 liked={songIsLiked || false}
                 disliked={songIsDisliked}
               />

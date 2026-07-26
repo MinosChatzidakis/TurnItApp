@@ -26,7 +26,7 @@ const sessionSchema = new mongoose.Schema(
         thumbnail: { type: String, required: true },
         suggestedByHash: { type: String, required: true }, //participant hash
         suggestedAt: { type: Date, default: Date.now }, //automatic timestamp
-        votes: { type: Number, default: 1 },
+        score: { type: Number, default: 1 },
       },
     ],
 

@@ -22,19 +22,22 @@ const LeaderboardCard = ({
       {/* 2. Smaller thumbnail image */}
       <img
         src={song.thumbnail}
-        alt={`${song.name} cover`}
+        alt={`${song.title} cover`}
         className="leaderboard-image"
       />
 
       {/* 3. Song Info (This will stretch to push the icons to the right) */}
       <div className="leaderboard-info">
-        <h4 className="leaderboard-title">{song.title}</h4>
+        <h4 className="leaderboard-title">{song.title || song.songTitle}</h4>{" "}
+        {/* take both naming possibilities into consideration */}
         <p className="leaderboard-artist">{song.artists}</p>
       </div>
 
       {/* 4. Score and Icons grouped on the far right */}
       <div className="leaderboard-actions">
-        {song.score && <h4 className="leaderboard-score">{song.score}</h4>}
+        {typeof song.score === "number" && (
+          <h4 className="leaderboard-score">{song.score}</h4>
+        )}
 
         {liked !== null && (
           <ThumbsUp
