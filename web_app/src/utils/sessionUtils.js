@@ -1,4 +1,3 @@
-import { generateSecureHash } from "./hash";
 import { useError } from "../Contexts/ErrorContext";
 
 // get session data from local storage
@@ -206,13 +205,12 @@ export const endSession = async (sessionCode, hostHash) => {
   return true; // Successfully deleted!
 };
 
-export const addSuggestion = async (sessionCode, hash, suggestion) => {
-  //todo figure out suggestion format
+export const addSuggestion = async (sessionCode, userHash, suggestion) => {
   if (!sessionCode || !userHash || !suggestion) {
     throw new Error("Cannot complete song suggestion. Missing data");
   }
-  sessionCode = sessionCode?.trim();
-  const cleanHash = hash?.trim();
+  sessionCode = sessionCode?.trim().toUpperCase();
+  const cleanHash = userHash?.trim();
   const response = await fetch(
     `http://localhost:3000/sessions/suggest/${sessionCode}`,
     {
@@ -220,16 +218,19 @@ export const addSuggestion = async (sessionCode, hash, suggestion) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         hash: cleanHash,
-        songSuggestion: suggestion,
+        songSuggestion: suggestion, //just the id
       }),
     },
   );
   if (!response?.ok) {
-    error = (await response.json()).error; //extract error message
+    let error = (await response.json()).error; //extract error message
     throw new Error(
       error || "An error occured - Couldn't complete song suggestion",
     );
   }
+
+  const updatedSuggestions = await response.json(); //get the new suggestions
+  if (!updatedSuggestions) throw new Error("Something went wrong");
   console.log("Song suggested successfully.");
-  return;
+  return updatedSuggestions;
 };

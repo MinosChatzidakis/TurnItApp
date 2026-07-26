@@ -41,7 +41,8 @@ const getActiveSessions = async (req, res) => {
 };
 
 const getSessionByCode = async (req, res) => {
-  const sessionCode = req.params.sessionCode; //grab session code t use
+  let sessionCode = req.params.sessionCode; //grab session code t use
+  sessionCode = sessionCode.toUpperCase();
   try {
     const data = await sessionsModel.getSessionByCode(sessionCode); //fetch the correct session from the database
     if (!data)
@@ -62,7 +63,7 @@ const getSessionByCode = async (req, res) => {
 const joinSession = async (req, res) => {
   const { sessionCode, nickname } = req.body;
   let cleanName = nickname?.trim();
-  const cleanCode = sessionCode?.trim();
+  const cleanCode = sessionCode?.trim().toUpperCase();
   if (!cleanCode)
     return res.status(400).json({ message: "Session code cannot be empty" });
   if (!cleanName)
@@ -247,20 +248,24 @@ const endSession = async (req, res) => {
 };
 
 const addSuggestion = async (req, res) => {
-  const sessionCode = req.params.sessionCode;
-  const { hash: participantToken, songId } = req.body;
+  let sessionCode = req.params.sessionCode?.toUpperCase();
+  let { hash: participantToken, songSuggestion: songId } = req.body;
   if (!sessionCode || !participantToken || !songId) {
+    console.log(sessionCode, participantToken, songId);
     console.log("Can't suggest song (info is missing)");
     return res.status(400).json({ error: "Bad Request - Missing info" }); //bad request if missing info
   }
   sessionCode = sessionCode.trim();
   participantToken = participantToken.trim();
   //check that the session is active
+  let sess; //session to which song will be suggested
   try {
-    const sess = await sessionsModel.getSessionByCode(sessionCode); //get session in which we are trying to add a suggestion
+    sess = await sessionsModel.getSessionByCode(sessionCode); //get session in which we are trying to add a suggestion
   } catch (e) {
     console.log(e);
-    return res.status(500).json({ error: "" });
+    return res
+      .status(500)
+      .json({ error: "Session is inactive, cannot suggest song" });
   }
   //check that the user is indeed in the session
   const isInSession = sess?.participants?.some(
@@ -290,22 +295,39 @@ const addSuggestion = async (req, res) => {
   //get song object from cache based on id sent back
   let songToSuggest;
   let fetchedSong;
-  const cachedSong = readFromCache(songId);
+  let cachedSong = readFromCache(songId);
   if (!cachedSong) {
-    //fetch from spotify
-    fetchedSong = getSongWithID(songId);
-  } else {
-    //song was cached
-    cachedSong = cachedSong?.data;
+    //fetch from spotify if somehow not cached
+    console.log("Not cached, fetching from spotify instead!");
+    fetchedSong = await getSongWithID(songId);
   }
 
-  const songToSuggest = cachedSong || fetchedSong; //prefer the cached one
+  songToSuggest = cachedSong || fetchedSong; //prefer the cached one
+  console.log("Song to suggest:", songToSuggest);
+
+  const finalSuggestionObject = {
+    songId: songToSuggest.id,
+    songTitle: songToSuggest.title,
+    artists: songToSuggest.artists,
+    thumbnail: songToSuggest.thumbnail,
+    suggestedByHash: participantToken,
+    votes: 0,
+  };
 
   //add suggestion to db
-  const suggestedSongs = await sessionsModel.addSuggestion(
-    sessionCode,
-    songToSuggest,
-  );
+  try {
+    const suggestedSongs = await sessionsModel.addSuggestionToSession(
+      sessionCode,
+      finalSuggestionObject,
+    )?.suggestions;
+    console.log("Successfully suggested song");
+    return res.status(200).json({ suggestionsList: suggestedSongs }); //return the whole suggestion list
+  } catch (e) {
+    console.log("Error in suggesting songs: ", e);
+    return res
+      .status(500)
+      .json({ error: "Server refused to add song to suggestions." });
+  }
 
   //
 };

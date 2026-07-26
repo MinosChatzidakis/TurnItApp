@@ -72,8 +72,18 @@ const endSession = async (code) => {
   return updatedSession;
 };
 
-const addSuggestion = async (code, suggestion) => {};
+const addSuggestionToSession = async (sessionCode, newSongData) => {
+  const updatedSession = await Session.findOneAndUpdate(
+    { code: sessionCode },
+    { $push: { suggestions: newSongData } },
+    { returnDocument: true },
+  );
 
+  if (!updatedSession) {
+    throw new Error("Session not found");
+  }
+  return updatedSession;
+};
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -81,5 +91,5 @@ module.exports = {
   joinSession,
   updateSession,
   endSession,
-  addSuggestion,
+  addSuggestionToSession,
 };

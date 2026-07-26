@@ -16,7 +16,7 @@ const writeToCache = (spotifyResults = []) => {
     const newTimeoutId = setTimeout(
       () => {
         songsCache.delete(song.id);
-        console.log(`Removed ${song.id} from cache`);
+        console.log(`Removed ${song.id} from cache at ${Date.now()}`);
       },
       15 * 60 * 1000,
     );
@@ -29,6 +29,8 @@ const writeToCache = (spotifyResults = []) => {
 
     console.log(`Cached ${song.id}`);
   });
+  const firstEntry = [...songsCache][0];
+  console.log("Song in cache: ", firstEntry);
 };
 
 const readFromCache = (songId) => {

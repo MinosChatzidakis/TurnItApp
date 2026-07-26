@@ -57,35 +57,23 @@ function JoinSession() {
   };
 
   const joinSessionWithCode = async () => {
-    if (!sessionCode) {
-      setError("Enter a session code to proceed!");
-      return;
-    }
-    if (!nickname) {
-      setError("Enter a nickname to proceed!");
-      return;
-    }
-    //this can be bypassed by removing this code and
+    if (!sessionCode) return setError("Enter a session code to proceed!");
+    if (!nickname) return setError("Enter a nickname to proceed!");
+
     const existingSession = JSON.parse(localStorage.getItem("sessionData"));
     if (existingSession && existingSession.activeSessionCode !== sessionCode) {
-      //allow user to join the session they are already part of but not a new one
-      setError(
+      return setError(
         `You have already joined session: ${existingSession.activeSessionCode}`,
       );
-      return;
     }
 
     try {
-      const res = await joinSession(nickname, sessionCode); //try to join session
-      if (!res.ok) {
-        setError("Session code not found");
-        console.log("Session not found in database");
-      }
+      // joinSession throws an error if it fails, so we don't need to check res.ok
+      await joinSession(nickname, sessionCode);
+      gotoPage("Suggest_Songs", sessionCode); // Success! Enter session.
     } catch (e) {
-      setError(e.message);
-      return;
+      setError(e.message); // Failure! Show error.
     }
-    gotoPage("Suggest_Songs", sessionCode); //enter session
   };
   return (
     <div className="container">
@@ -108,7 +96,12 @@ function JoinSession() {
           setQuery={setNickname}
           handleKeyDown={handleKeyDown}
         />
-        <Button onClick={joinSessionWithCode}>GO</Button>
+        <Button
+          onClick={joinSessionWithCode}
+          disabled={!sessionCode || !nickname || sessionCode.length < 6}
+        >
+          GO
+        </Button>
         <Button onClick={() => gotoPage("Splash")}>BACK</Button>
       </div>
     </div>

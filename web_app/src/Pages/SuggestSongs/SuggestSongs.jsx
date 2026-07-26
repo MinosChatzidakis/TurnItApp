@@ -65,13 +65,14 @@ function SuggestSongs() {
     verifyCode();
   }, [sessionCode]); // run every time sessionCode changes
 
-  const getctiveSessionCodes = () => {};
-
-  //todo replace this with actual logic which communicates with the backend
   const suggestSong = (song) => {
     try {
-      console.log(song);
-      //addSuggestion(sessionCode, currStor_JSON.token, song);
+      console.log("Suggesting: ", song);
+      const newSuggestions = addSuggestion(
+        sessionCode,
+        currStor_JSON?.token,
+        song.id,
+      ); //send only the id back
     } catch (e) {
       console.log("An error occured and we couldn't suggest your song");
       setError(e);
@@ -82,7 +83,7 @@ function SuggestSongs() {
       return;
     }
     setSuggestedSongs((prev) => [...prev, { ...song, score: 0 }]); //initialise score as 0
-    console.log("Added: ", song);
+    console.log("Added: ", song.id);
   };
 
   // safely fetch spotify songs
@@ -262,7 +263,7 @@ function SuggestSongs() {
   return isValidSession ? (
     <div className="container">
       <h1>{joinedSession?.name}</h1>
-      <h1>{currStor_JSON?.activeSessionCode}</h1>
+      <h1>{currStor_JSON?.activeSessionCode?.toUpperCase()}</h1>
       {/* search songs component */}
       <AsyncSelect
         loadOptions={loadOptions}
@@ -277,10 +278,8 @@ function SuggestSongs() {
         cacheOptions // Memorizes searches to save API calls
         onChange={(selectedItem) => suggestSong(selectedItem.value)} //When they pick a song, runs your function
       />
-
       {/* render already suggested songs */}
       <h3>SUGGESTED SONGS</h3>
-
       <div className="songs_grid">
         {suggestedSongs
           .sort((a, b) => b.score - a.score)
@@ -302,12 +301,11 @@ function SuggestSongs() {
             );
           })}
       </div>
-
-      {/* add a check to see if user has joined this session*/}
+      {/* //todo add a check to see if user has joined this session*/}
       <Button
         onClick={() => {
           leaveSession("123" /* replace with context.code */);
-          gotoPage("join_session");
+          //gotoPage("join_session");
         }}
       >
         LEAVE SESSION
