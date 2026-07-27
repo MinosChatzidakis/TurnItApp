@@ -1,5 +1,3 @@
-//change session name, change owner nickname, view code, view participants, view suggestions, view leaderboard, view playing now in spotify and up next, add suggestions to playlist, end session
-//!find a way to only allow one host in here
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import SearchBar from "../../Components/SearchBar/SearchBar";
@@ -11,10 +9,19 @@ import {
 import { useError } from "../../Contexts/ErrorContext";
 import { useRouting } from "../../hooks/useRouting";
 import Button from "../../Components/SimpleButton/Button";
-import { FaLock, FaSpinner, FaCopy, FaInfoCircle } from "react-icons/fa";
-const HostDashboard = () => {
-  const { sessionCode: urlSessionCode } = useParams(); //get code given in the url
+import {
+  FaSpinner,
+  FaCopy,
+  FaInfoCircle,
+  FaUser,
+  FaMusic,
+  FaCrown,
+} from "react-icons/fa";
+import ActionMenu from "../../Components/ActionMenu/ActionMenu";
+import "./HostDashboard.styles.css";
 
+const HostDashboard = () => {
+  const { sessionCode: urlSessionCode } = useParams();
   const savedHostData = JSON.parse(localStorage.getItem("hostData") || "{}");
 
   const [sessionCode, setSessionCode] = useState(
@@ -22,88 +29,79 @@ const HostDashboard = () => {
   );
 
   const { setError } = useError();
-
   const { gotoPage } = useRouting();
 
-  const [session, setSession] = useState(null); //changes can be made here
-
-  const [currentSession, setCurrentSession] = useState(null); //this is the starting state of the session
-
+  const [session, setSession] = useState(null);
+  const [currentSession, setCurrentSession] = useState(null);
   const [showEndPopUp, setShowEndPopUp] = useState(false);
 
-  //change the session's name
+  const [activeTab, setActiveTab] = useState("settings");
 
   const setSessionName = (newName) => {
-    setSession((prev) => ({
-      ...prev,
-
-      name: newName,
-    }));
+    setSession((prev) => ({ ...prev, name: newName }));
   };
-
-  //change the owner's nickname
 
   const setSessionOwner = (newNickname) => {
     setSession((prev) => ({
       ...prev,
-
-      host: {
-        ...prev.host,
-
-        nickname: newNickname,
-      },
+      host: { ...prev.host, nickname: newNickname },
     }));
   };
 
-  // null = loading, true = valid, false = invalid
+  const songActions = [
+    {
+      label: "Set as played",
+      danger: false,
+      onClick: () => {},
+    },
+    {
+      label: "View in spotify",
+      danger: false,
+      onClick: () => {},
+    },
+    {
+      label: "Ban song",
+      danger: true,
+      onClick: () => {},
+    },
+  ];
+  const participantsActions = [];
 
   const [isValidSession, setIsValidSession] = useState(null);
-
-  //handle change in the url
 
   useEffect(() => {
     const verifyCode = async () => {
       if (!sessionCode) {
         setIsValidSession(false);
-
         return;
       }
 
       try {
-        const sessionData = await getActiveSession(sessionCode); //check if it valid
-
+        const sessionData = await getActiveSession(
+          sessionCode,
+          savedHostData?.token,
+        );
         setCurrentSession(sessionData);
-
-        setSession(sessionData); //store the object
-
-        console.log("Session data= ", sessionData);
+        setSession(sessionData);
 
         if (sessionData && !sessionData.error) {
-          setIsValidSession(true); //it exists => valid
+          setIsValidSession(true);
         } else {
-          setIsValidSession(false); //it doesn't => invalid
+          setIsValidSession(false);
         }
       } catch (err) {
-        console.log("Got an error", err);
-
         setIsValidSession(false);
-        localStorage.removeItem("hostData"); // ** hsot is trying to continue in a session that does not exist => remove it from their localstorage so they can create a new one **
+        localStorage.removeItem("hostData");
       }
     };
 
     verifyCode();
-  }, [sessionCode]); // run every time sessionCode changes
-
-  //make sure that host credentials are present
+  }, [sessionCode]);
 
   useEffect(() => {
     const hostData = localStorage.getItem("hostData");
-
     if (!hostData) {
-      console.log("no token");
-
       setError("Something went wrong.");
-
       gotoPage("SPLASH");
     }
   }, []);
@@ -111,154 +109,288 @@ const HostDashboard = () => {
   if (isValidSession === null) {
     return (
       <div className="loading-container">
-        <FaSpinner className="spinner" />
-
+        <FaSpinner className="spinner" size={30} />
         <p>Loading session...</p>
       </div>
     );
   }
 
   return isValidSession ? (
-    <div className="container">
-      <h2>SESSION DASHBOARD</h2>
-      {/* Informational Banner */}
-      <div
-        style={{
-          backgroundColor: "rgba(255, 204, 0, 0.2)",
-          border: "1px solid #ffcc00",
-          padding: "10px",
-          borderRadius: "8px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          margin: "15px 0",
-          fontSize: "0.9rem",
-        }}
-      >
-        <FaInfoCircle style={{ color: "#ffcc00", flexShrink: 0 }} />
-        <p style={{ margin: 0 }}>
-          <strong>Keep this tab open!</strong> If you clear your browser cache
-          or close a private/incognito window, you will lose your host controls.
-        </p>
+    <div className="host-dashboard-container">
+      <h2 className="dashboard-title">SESSION DASHBOARD</h2>
+
+      {/* --- TAB NAVIGATION --- */}
+      <div className="tab-navigation">
+        <button
+          className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
+          onClick={() => setActiveTab("settings")}
+        >
+          Settings
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "suggestions" ? "active" : ""}`}
+          onClick={() => setActiveTab("suggestions")}
+        >
+          Suggestions
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "participants" ? "active" : ""}`}
+          onClick={() => setActiveTab("participants")}
+        >
+          Participants
+        </button>
       </div>
-      {/* session code */}
-      Code:
-      <SearchBar
-        placeholderText={sessionCode}
-        query={sessionCode}
-        readOnly={true}
-      >
-        <FaCopy
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(sessionCode); //copy text to clipboard
 
-              setError("Copied!");
+      {/* --- TAB CONTENT: SETTINGS --- */}
+      {activeTab === "settings" && (
+        <div className="tab-content settings-tab">
+          <div className="info-banner">
+            <FaInfoCircle className="info-banner-icon" />
+            <p style={{ margin: 0 }}>
+              <strong>Keep this tab open!</strong> If you clear your browser
+              cache or close a private/incognito window, you will lose your host
+              controls.
+            </p>
+          </div>
 
-              console.log("Copied!");
-            } catch (err) {
-              setError("Failed to copy text.");
+          <span className="settings-label">Code:</span>
+          <SearchBar
+            placeholderText={sessionCode}
+            query={sessionCode}
+            readOnly={true}
+          >
+            <FaCopy
+              className="copy-icon"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(sessionCode);
+                  setError("Copied!");
+                } catch (err) {
+                  setError("Failed to copy text.");
+                }
+              }}
+            />
+          </SearchBar>
 
-              console.error("Failed to copy text: ", err);
-            }
-          }}
-        />
-      </SearchBar>
-      {/* session name */}
-      Session name:
-      <SearchBar
-        placeholderText={session.name}
-        query={session.name}
-        setQuery={setSessionName}
-      />
-      {/* owner's nickname */}
-      Owner's nickname:
-      <SearchBar
-        placeholderText={session?.host?.nickname}
-        query={session?.host?.nickname}
-        setQuery={setSessionOwner}
-      />
-      {/* save changes */}
-      <Button
-        onClick={async () => {
-          try {
-            const res = await updateSession(
-              sessionCode,
-              session,
-              savedHostData?.token,
-            );
+          <span className="settings-label">Session name:</span>
+          <SearchBar
+            placeholderText={session.name}
+            query={session.name}
+            setQuery={setSessionName}
+          />
 
-            const jsonResponse = await res.json();
+          <span className="settings-label">Owner's nickname:</span>
+          <SearchBar
+            placeholderText={session?.host?.nickname}
+            query={session?.host?.nickname}
+            setQuery={setSessionOwner}
+          />
 
-            const updatedSession = jsonResponse?.session; //it also includes a message
+          <div className="button-group">
+            <Button
+              className="full-width-btn"
+              onClick={async () => {
+                try {
+                  const res = await updateSession(
+                    sessionCode,
+                    session,
+                    savedHostData?.token,
+                  );
+                  const jsonResponse = await res.json();
+                  const updatedSession = jsonResponse?.session;
+                  setCurrentSession(structuredClone(updatedSession));
+                  setSession(structuredClone(updatedSession));
+                  setError(jsonResponse?.message);
+                } catch (err) {
+                  setError(err.message || "Failed to save changes.");
+                }
+              }}
+              disabled={
+                currentSession?.name === session?.name &&
+                currentSession?.host?.nickname === session?.host?.nickname
+              }
+            >
+              SAVE CHANGES
+            </Button>
 
-            setCurrentSession(structuredClone(updatedSession)); //the one used for reseting
-            setSession(structuredClone(updatedSession)); //the one used for editing
+            <Button
+              className="full-width-btn"
+              onClick={async () => setSession(currentSession)}
+              disabled={
+                currentSession?.name === session?.name &&
+                currentSession?.host?.nickname === session?.host?.nickname
+              }
+            >
+              RESET CHANGES
+            </Button>
 
-            setError(jsonResponse?.message);
-          } catch (err) {
-            console.error("Save failed:", err);
-            setError(err.message || "Failed to save changes.");
-          }
-        }}
-        disabled={
-          currentSession?.name === session?.name &&
-          currentSession?.host?.nickname === session?.host?.nickname
-        }
-      >
-        SAVE CHANGES
-      </Button>
-      {/* cancel changes */}
-      <Button
-        onClick={async () => {
-          setSession(currentSession);
-        }}
-        disabled={
-          currentSession?.name === session?.name &&
-          currentSession?.host?.nickname === session?.host?.nickname
-        } // only be able to save if changes have been made
-      >
-        RESET CHANGES
-      </Button>
-      {/* END SESSION */}
-      <Button
-        onClick={async () => {
-          try {
-            setShowEndPopUp(true);
+            <div className="grid-item-span-2">
+              <Button
+                className="btn-end-session"
+                onClick={async () => {
+                  try {
+                    setShowEndPopUp(true);
+                    const hostData = JSON.parse(
+                      localStorage.getItem("hostData") || "{}",
+                    );
+                    if (!hostData.token)
+                      throw new Error("No host token found.");
 
-            const hostData = JSON.parse(
-              localStorage.getItem("hostData") || "{}",
-            );
+                    await endSession(sessionCode, hostData.token);
+                    setError("Session ended successfully.");
+                    localStorage.removeItem("hostData");
+                    gotoPage("SPLASH");
+                  } catch (e) {
+                    setError(e.message);
+                  }
+                }}
+              >
+                END SESSION
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            if (!hostData.token) {
-              throw new Error("No host token found.");
-            }
+      {/* --- TAB CONTENT: SUGGESTIONS --- */}
+      {activeTab === "suggestions" && (
+        <div className="tab-content">
+          <h3>Suggested Songs ({currentSession?.suggestions?.length || 0})</h3>
 
-            // If endSession fails, it will jump straight to the catch block below
+          {currentSession?.suggestions?.length > 0 ? (
+            <div className="fancy-grid">
+              {currentSession.suggestions
+                .sort((a, b) => (b.score ?? 1) - (a.score ?? 1))
+                .map((song, index) => {
+                  return (
+                    <div key={index} className="fancy-card">
+                      <div className="fancy-info-group">
+                        <div className="icon-wrapper">
+                          {song.thumbnail ? (
+                            <img src={song.thumbnail} alt="Cover" />
+                          ) : (
+                            <FaMusic />
+                          )}
+                        </div>
 
-            await endSession(sessionCode, hostData.token);
+                        <div className="card-text-content">
+                          <h4
+                            className="card-title"
+                            title={song.songTitle || song.title}
+                          >
+                            {song.songTitle || song.title}
+                          </h4>
+                          <p className="card-subtitle" title={song.artists}>
+                            {song.artists || "Unknown Artist"}
+                          </p>
+                          <p className="card-meta">
+                            Suggested by:
+                            {" " + song.suggestedByNickname || " Unknown"}
+                          </p>
+                        </div>
+                      </div>
 
-            // If we reach this line, deletion was successful!
+                      <div className="card-actions">
+                        <div className="score-badge">{song.score ?? 1} pts</div>
 
-            setError("Session ended successfully.");
+                        {/* --- NEW SONG MENU --- */}
+                        <ActionMenu
+                          options={[
+                            {
+                              label: "Set as played",
+                              onClick: () => setSongAsPlayed(),
+                            },
+                            {
+                              label: "Add to Playlist",
+                              onClick: () =>
+                                console.log("Add: ", song.songTitle),
+                            },
+                            {
+                              label: "Remove Suggestion",
+                              onClick: () =>
+                                console.log("Remove: ", song.songTitle),
+                              danger: true,
+                            },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <p className="empty-state">No songs have been suggested yet.</p>
+          )}
+        </div>
+      )}
 
-            localStorage.removeItem("hostData");
+      {/* --- TAB CONTENT: PARTICIPANTS --- */}
+      {activeTab === "participants" && (
+        <div className="tab-content">
+          <h3>
+            Session Participants ({currentSession?.participants?.length || 0})
+          </h3>
 
-            gotoPage("SPLASH"); //back to splash screen
-          } catch (e) {
-            // Pass e.message so React receives a clean string instead of an object!
+          <div className="fancy-grid">
+            {/* Host Card */}
+            <div className="fancy-card host-card">
+              <div className="fancy-info-group">
+                <div className="icon-wrapper host-icon-wrapper">
+                  <FaCrown />
+                </div>
+                <div className="card-text-content">
+                  <h4 className="card-title">{currentSession?.host}</h4>
+                  <p className="card-subtitle">Host</p>
+                </div>
+              </div>
+            </div>
 
-            console.error("End session failed:", e.message);
+            {/* Participants Mapping */}
+            {currentSession?.participants?.length > 0 &&
+              currentSession.participants.map((participant, index) => (
+                <div key={index} className="fancy-card">
+                  <div className="fancy-info-group">
+                    <div className="icon-wrapper">
+                      <FaUser />
+                    </div>
+                    <div className="card-text-content">
+                      <h4 className="card-title">{participant}</h4>
+                      <p className="card-subtitle">Participant</p>
+                    </div>
+                  </div>
 
-            setError(e.message);
-          }
-        }}
-      >
-        END SESSION
-      </Button>
+                  <div className="card-actions">
+                    {/* --- NEW PARTICIPANT MENU --- */}
+                    <ActionMenu
+                      options={[
+                        {
+                          label: "Make Host",
+                          onClick: () =>
+                            console.log("Make Host: ", participant),
+                        },
+                        {
+                          label: "Kick Participant",
+                          onClick: () => console.log("Kick: ", participant),
+                          danger: true,
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {currentSession?.participants?.length === 0 && (
+            <p className="empty-state">No participants have joined yet.</p>
+          )}
+        </div>
+      )}
     </div>
   ) : (
-    <div>invalid session</div>
+    <div className="invalid-session-message">
+      <h2>Session Not Found</h2>
+      <p>This session is invalid or has ended.</p>
+    </div>
   );
 };
 

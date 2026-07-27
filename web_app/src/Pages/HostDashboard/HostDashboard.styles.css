@@ -1,4 +1,4 @@
-/* Layout & Containers */
+/* --- Layout & Containers --- */
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -7,31 +7,48 @@
   min-height: 50vh;
 }
 
-.invalid-session-message {
-  text-align: center;
-  margin-top: 2rem;
-}
-
 .host-dashboard-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 600px;
+  max-width: 800px; /* Widened slightly to accommodate the card grid */
   margin: 0 auto;
   padding: 2rem 1rem;
   text-align: center;
 }
 
-.dashboard-title {
-  margin-bottom: 1.5rem;
+/* --- Info Banner --- */
+.info-banner {
+  background-color: rgba(255, 204, 0, 0.15);
+  border: 1px solid #ffcc00;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #b45309; /* Darker text for readability */
 }
 
-/* Tab Navigation */
+.info-banner-icon {
+  color: #d97706;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+}
+
+/* --- Tab Navigation --- */
 .tab-navigation {
   display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 2rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 1rem;
+  width: 100%;
 }
 
 .tab-btn {
@@ -46,36 +63,45 @@
 }
 
 .tab-btn.active {
-  background-color: #3b82f6;
+  background-color: #1db954; /* Kept the Spotify green accent */
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 6px rgba(29, 185, 84, 0.3);
 }
 
 .tab-content {
   width: 100%;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
-/* Settings Tab */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Settings Tab --- */
 .settings-tab {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.8rem;
+  gap: 1rem;
+  text-align: left;
+  width: 100%;
 }
 
 .settings-label {
   font-weight: bold;
-  align-self: flex-start;
-  margin-top: 0.5rem;
-}
-
-.settings-label:first-of-type {
-  margin-top: 0;
+  color: #374151;
+  margin-bottom: -0.5rem;
 }
 
 .copy-icon {
   cursor: pointer;
-  color: #4b5563;
+  color: #6b7280;
   transition: color 0.2s ease;
 }
 
@@ -88,18 +114,12 @@
   margin-top: 1.5rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: 1rem;
   width: 100%;
-}
-
-.grid-item {
-  display: flex;
 }
 
 .grid-item-span-2 {
   grid-column: 1 / -1;
-  display: flex;
-  width: 100%;
 }
 
 .full-width-btn {
@@ -107,7 +127,6 @@
 }
 
 .btn-end-session {
-  width: 100%;
   background-color: #ef4444 !important;
   color: #ffffff !important;
   border-color: #dc2626 !important;
@@ -118,68 +137,215 @@
   background-color: #dc2626 !important;
 }
 
-/* Suggestions Tab */
-.suggestions-title {
-  margin-bottom: 1rem;
-}
-
-.suggestions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+/* --- Fancy Cards (Suggestions & Participants) --- */
+.fancy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
   width: 100%;
+  margin-top: 1.5rem;
+  text-align: left;
 }
 
-.suggestion-card {
+.fancy-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
   background-color: #f9fafb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  text-align: left;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #1db954; /* Accent Border */
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.song-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+.fancy-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.song-title {
-  font-size: 1.05rem;
-  color: #111827;
+.fancy-card.host-card {
+  border-left-color: #ffcc00;
+  background-color: #fffbeb;
 }
 
-.song-artist {
-  font-size: 0.9rem;
-  color: #6b7280;
-}
-
-.song-actions {
+.fancy-info-group {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 1;
+  overflow: hidden; /* Prevents long text from breaking layout */
 }
 
-.points-badge {
+.icon-wrapper {
+  background-color: #e5e7eb;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: #6b7280;
+}
+
+.icon-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.host-icon-wrapper {
+  background-color: rgba(255, 204, 0, 0.2);
+  color: #d97706;
+}
+
+.card-text-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.05rem;
   font-weight: bold;
-  padding: 0.25rem 0.75rem;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-meta {
+  margin: 2px 0 0 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.score-badge {
   background: #dbeafe;
   color: #1e40af;
-  border-radius: 9999px;
-  font-size: 0.85rem;
+  font-weight: bold;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
   white-space: nowrap;
 }
 
-.link-icon {
+.action-btn {
+  background: transparent;
+  border: none;
   cursor: pointer;
-  color: #9ca3af;
-  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
 }
 
-.link-icon:hover {
-  color: #4b5563;
+.action-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.kick-btn {
+  color: #ef4444;
+  font-size: 1.2rem;
+}
+
+.kick-btn:hover {
+  background-color: #fee2e2;
+}
+
+.empty-state {
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 1rem;
+}
+
+/* --- Action Menu (Three Dots) --- */
+.action-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.action-menu-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.action-menu-btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.action-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  z-index: 50; /* Ensure it floats above other cards */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.action-menu-item {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #374151;
+  transition: background-color 0.2s ease;
+}
+
+.action-menu-item:hover {
+  background-color: #f3f4f6;
+}
+
+/* Red styling for destructive actions (like Kick or Remove) */
+.action-menu-item.danger {
+  color: #ef4444;
+}
+
+.action-menu-item.danger:hover {
+  background-color: #fee2e2;
 }

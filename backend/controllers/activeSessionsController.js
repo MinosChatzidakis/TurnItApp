@@ -1,4 +1,5 @@
 const sessionsModel = require("../models/activeSessionsModel");
+const Session = require("../Session");
 const {
   generateSessionCode,
   generateSecureHash,
@@ -20,7 +21,7 @@ const getActiveSessions = async (req, res) => {
       finalData = data.map((session) => ({
         code: session.code,
         owner: session.owner,
-        participants: session.nicknames,
+        participants: session.nicknames, //!this needs fixing -- returns bullshit
       }));
     } else if (codesOnly === "true") {
       finalData = data.map((session) => session.code); //return only the codes of the active sessions
@@ -41,7 +42,15 @@ const getActiveSessions = async (req, res) => {
 };
 
 const getSessionByCode = async (req, res) => {
-  let sessionCode = req.params.sessionCode; //grab session code t use
+  let { sessionCode, token } = req.params; //grab session code t use
+
+  if (!sessionCode || !token) {
+    console.log("Missing info, cannot get session");
+    return res
+      .status(400)
+      .json({ error: "You did not provide everything that was needed" });
+  }
+
   sessionCode = sessionCode.toUpperCase();
   try {
     const data = await sessionsModel.getSessionByCode(sessionCode); //fetch the correct session from the database
@@ -52,14 +61,28 @@ const getSessionByCode = async (req, res) => {
     console.log(
       `Session with code ${sessionCode} found. Constructing object to be returned to the frontend`,
     );
-    const { code, name, suggestions } = data;
-    const ltdSession = {
+    const isHost = data.host?.hash === token; //true => also return the nicknames in the session
+    const { code, name, suggestions, participants, host } = data; //get only what we will need
+    const nicknamesOfParticipants = participants.map((item) => item.nickname);
+    //nicknamesOfParticipants.push(host.nickname); also include host -- unecessary it looks like
+    const hostNickname = host?.nickname;
+    let ltdSession = {
       //return a limited version of the session object
       code,
       name,
-      suggestions,
+      suggestions: await sessionsModel.getSuggestionsWithNicknames(
+        sessionCode,
+        token,
+      ),
     };
-    res.status(200).json(data); //return the session
+    if (isHost) {
+      ltdSession = {
+        ...ltdSession,
+        participants: nicknamesOfParticipants,
+        host: hostNickname,
+      };
+    }
+    res.status(200).json(ltdSession); //return the session
   } catch (err) {
     console.log("controller error: ", err.message);
     res.status(500).json({
@@ -89,9 +112,10 @@ const joinSession = async (req, res) => {
         .status(404)
         .json({ message: `Session with code ${cleanCode} not found` });
     //check if the name already exists in said session
-    const nicknameExistsInSession = selectedSession?.participants?.some(
-      (element) => element.nickname === cleanName,
-    );
+    const nicknameExistsInSession =
+      selectedSession?.participants?.some(
+        (element) => element.nickname === cleanName,
+      ) || selectedSession?.host.nickname === cleanName;
     if (nicknameExistsInSession) {
       //nickname exists :::: append a number and join with it
       cleanName =
@@ -379,6 +403,89 @@ const getSuggestions = async (req, res) => {
   }
 };
 
+const removeParticipant = async (req, res) => {
+  try {
+    const { sessionCode: code, nickname } = req.params;
+    console.log(code, nickname);
+
+    // 1. Extract the token from the "Authorization: Bearer <token>" header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ error: "Missing or invalid authorization header" });
+    }
+    const requesterHash = authHeader.split(" ")[1];
+
+    // 2. Fetch the session (using .lean() for speed since we just need to read it)
+    const session = await Session.findOne({
+      code: code,
+      isActive: true,
+    }).lean();
+
+    if (!session) {
+      console.log(`Couldn't find session with code: ${code}`);
+      return res.status(404).json({ error: "Active session not found" });
+    }
+
+    // 3. Prevent the host from being removed via this endpoint
+    if (session.host.nickname === nickname) {
+      return res.status(400).json({
+        error: "Cannot remove the host",
+      });
+    }
+
+    // 4. Find the target participant to get their hash
+    const targetParticipant = session.participants.find(
+      (p) => p.nickname === nickname,
+    );
+
+    if (!targetParticipant) {
+      return res
+        .status(404)
+        .json({ error: "Participant not found in this session" });
+    }
+
+    // 5. AUTHORIZATION CHECK
+    const isHost = session.host.hash === requesterHash;
+    const isSelf = targetParticipant.hash === requesterHash;
+
+    if (!isHost && !isSelf) {
+      return res.status(403).json({
+        error:
+          "Unauthorized: You must be the host or the specific user to do this.",
+      });
+    }
+
+    // 6. Safe Removal using MongoDB $pull operator
+    // We use findOneAndUpdate with $pull to prevent race conditions
+    // if two people leave at the exact same millisecond.
+    const updatedSession = await Session.findOneAndUpdate(
+      { code: code },
+      { $pull: { participants: { nickname: nickname } } },
+      { returnDocument: true, returnDocument: "after" },
+    ).lean();
+
+    // 7. Strip sensitive data (DTO pattern) before sending the response
+    const { host, participants, _id, __v, ...safeSessionData } = updatedSession;
+
+    // Optional: You can map the remaining participants to hide their hashes too
+    const safeParticipants = updatedSession.participants.map((p) => ({
+      nickname: p.nickname,
+    }));
+
+    return res.status(200).json({
+      message: `Successfully removed ${nickname}`,
+      session: {
+        ...safeSessionData, //only return data that can be shown + the nicknames of the remainding participants
+        participants: safeParticipants,
+      },
+    });
+  } catch (error) {
+    console.error("Error removing participant:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -388,4 +495,5 @@ module.exports = {
   endSession,
   addSuggestion,
   getSuggestions,
+  removeParticipant,
 };

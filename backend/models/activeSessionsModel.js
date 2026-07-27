@@ -1,7 +1,7 @@
 const Session = require("../Session");
 
 const getActiveSessions = async () => {
-  return await Session.find({ isActive: true });
+  const sessions = await Session.find({ isActive: true });
 };
 
 const getSessionByCode = async (code) => {

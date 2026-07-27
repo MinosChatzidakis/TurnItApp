@@ -10,6 +10,7 @@ const LeaderboardCard = ({
   onClick = () => console.log("no event handler given"),
   onLike = () => console.log("no event handler given"),
   onDislike = () => console.log("no event handler given"),
+  canVote = true,
   liked = null,
   disliked = null,
   rank,

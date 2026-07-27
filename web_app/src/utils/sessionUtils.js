@@ -28,9 +28,12 @@ const checkUsernameAvailability = (selectedSession, cleanName) => {
 };
 
 //get session by session code
-export const getActiveSession = async (sessionCode) => {
+export const getActiveSession = async (sessionCode, userToken) => {
+  if (!sessionCode || !userToken) {
+    throw new Error("Missing info, cannot get session details");
+  }
   const response = await fetch(
-    `http://localhost:3000/sessions/code/${sessionCode}`,
+    `http://localhost:3000/sessions/code/${sessionCode}/${userToken}`,
   );
   if (!response.ok)
     throw new Error({
@@ -116,9 +119,33 @@ export const joinSession = async (nickname, sessionCode) => {
   }
 };
 
-export const leaveSession = async (sessionCode, userHash) => {
-  //let the backend know
-  localStorage.removeItem("sessionData"); //remove from the device
+export const removeParticipantFromSession = async (
+  sessionCode,
+  targetNickname,
+  authToken,
+) => {
+  console.log(sessionCode, targetNickname, authToken);
+  if (!sessionCode || !targetNickname || !authToken)
+    throw new Error("Missing fields, cannot remove user");
+
+  const response = await fetch(
+    `http://localhost:3000/sessions/${sessionCode}/participants/${targetNickname}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const j = await response.json();
+    const err = j?.error;
+    throw new Error(err || "Failed to remove participant");
+  }
+
+  return await response.json();
 };
 
 export const createSession = async (newSession) => {
@@ -205,6 +232,7 @@ export const endSession = async (sessionCode, hostHash) => {
 
 export const addSuggestion = async (sessionCode, userHash, suggestion) => {
   if (!sessionCode || !userHash || !suggestion) {
+    console.log(sessionCode, userHash, suggestion);
     throw new Error("Cannot complete song suggestion. Missing data");
   }
   sessionCode = sessionCode?.trim().toUpperCase();
@@ -263,5 +291,40 @@ export const getSuggestions = async (sessionCode, userHash) => {
   } catch (e) {
     console.error(e);
     throw e; // Always re-throw so the frontend UI knows it failed
+  }
+};
+
+export const setSongAsPlayed = async (sessionCode, songId, hostHash) => {
+  if (!sessionCode || !songId || !hostHash) {
+    throw new Error("Cannot set as played because fields are missing");
+  }
+  const trueCode = sessionCode.toUpperCase().trim();
+  try {
+    const response = await fetch(`http://localhost:3000/sessions/${trueCode}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${hostHash}`,
+      },
+      body: {
+        songId: songId,
+      },
+    });
+    if (!response.ok) {
+      const j = await response.json();
+      const error = j.error;
+      throw new Error(
+        error || "Something went wrong with setting this song as played",
+      );
+    }
+    const data = await response.json();
+    return data?.suggestions; //! this needs to be returned
+
+    if (!updatedSuggestions)
+      throw new Error("Update fetched but something went wrong");
+    console.log("");
+  } catch (error) {
+    console.log(error);
+    throw error;
   }
 };

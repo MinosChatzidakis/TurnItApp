@@ -9,7 +9,7 @@ import "./SuggestSongs.styles.css";
 import { useError } from "../../Contexts/ErrorContext";
 import AsyncSelect from "react-select/async";
 import {
-  leaveSession,
+  removeParticipantFromSession,
   getActiveSession,
   addSuggestion,
   getSuggestions,
@@ -26,6 +26,8 @@ function SuggestSongs() {
   const currStor_JSON = JSON.parse(currStor);
   const { error, setError } = useError();
   const { gotoPage } = useRouting();
+
+  const [fetchSuggestions, setFetchSuggestions] = useState(true);
 
   const { sessionCode: urlSessionCode } = useParams(); //get the code from the url
 
@@ -51,7 +53,10 @@ function SuggestSongs() {
       }
 
       try {
-        const sessionData = await getActiveSession(sessionCode); //check if it valid
+        const sessionData = await getActiveSession(
+          sessionCode,
+          jsonStorage?.token,
+        ); //check if it valid
         if (sessionData && !sessionData?.error) {
           setIsValidSession(true); //it exists => valid
           setJoinedSession(sessionData);
@@ -72,7 +77,7 @@ function SuggestSongs() {
       try {
         const suggestions = await getSuggestions(
           sessionCode,
-          currStor_JSON.token,
+          currStor_JSON?.token,
         );
         setSuggestedSongs(suggestions);
       } catch (error) {
@@ -89,17 +94,21 @@ function SuggestSongs() {
     const intervalId = setInterval(() => {
       fetchSongs();
     }, randomInterval);
-
+    setFetchSuggestions(false);
     // If you don't do this, React will create a brand new interval every time the
     // component re-renders, and your app will crash from doing 1,000 fetches a second.
     return () => {
       clearInterval(intervalId);
     };
-  }, [sessionCode, currStor_JSON.token]);
+  }, [sessionCode, currStor_JSON?.token, fetchSuggestions]);
 
   const suggestSong = async (song) => {
     //check if song has already been suggested
-    if (suggestedSongs.some((currentItem) => currentItem.id === song.songId)) {
+    if (
+      suggestedSongs.some((currentItem) => {
+        return currentItem.songId === song.id;
+      })
+    ) {
       setError("Song is already suggested. You can vote for it!");
       return;
     }
@@ -109,11 +118,12 @@ function SuggestSongs() {
       const newSuggestionList = await addSuggestion(
         sessionCode,
         currStor_JSON?.token,
-        song.songId,
+        song.id || song.songId,
       ); //send only the id back
       //apply changes locally
       setSuggestedSongs(newSuggestionList);
-      console.log("Added: ", song.songId);
+      setFetchSuggestions(true);
+      console.log("Added: ", song.id || song.songId);
     } catch (e) {
       console.log("An error occured and we couldn't suggest your song");
       setError(e.message);
@@ -338,8 +348,18 @@ function SuggestSongs() {
       {/* //todo add a check to see if user has joined this session*/}
       <Button
         onClick={() => {
-          leaveSession("123" /* replace with context.code */);
-          //gotoPage("join_session");
+          try {
+            removeParticipantFromSession(
+              sessionCode,
+              currStor_JSON?.name,
+              currStor_JSON?.token,
+            );
+          } catch (error) {
+            setError(error);
+            console.log(error);
+          }
+          localStorage.removeItem("sessionData"); //remove from the device
+          gotoPage("join_session");
         }}
       >
         LEAVE SESSION
