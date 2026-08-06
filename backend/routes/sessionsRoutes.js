@@ -36,27 +36,4 @@ router.post(
   activeSessionsController.voteForSong,
 );
 
-// POST route to save an email
-router.post("/subscribe", async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    const newEmail = new Email({ email });
-    await newEmail.save();
-
-    res.status(201).json({ message: "Email saved successfully!" });
-  } catch (error) {
-    // 11000 is MongoDB's error code for a duplicate unique value
-    if (error.code === 11000) {
-      return res.status(400).json({ error: "Email is already registered!" });
-    }
-    console.error(error);
-    res.status(500).json({ error: "Server error saving email." });
-  }
-});
-
 module.exports = router;
