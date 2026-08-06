@@ -37,7 +37,7 @@ router.post(
 );
 
 // POST route to save an email
-app.post("/subscribe", async (req, res) => {
+router.post("/subscribe", async (req, res) => {
   try {
     const { email } = req.body;
 
