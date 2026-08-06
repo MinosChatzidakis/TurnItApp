@@ -8,7 +8,7 @@ import { ErrorProvider } from "./Contexts/ErrorContext";
 import { SessionProvider } from "./Contexts/SessionContext";
 import HostSession from "./Pages/HostSession/HostSession";
 import HostDashboard from "./Pages/HostDashboard/HostDashboard";
-import EmailPopup from "./Components/EmailPopUp/EmiailPopUp";
+import EmailPopup from "./Components/EmailPopUp/EmailPopUp";
 
 function App() {
   const [isServerDown, setIsServerDown] = useState(false);
