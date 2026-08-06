@@ -21,5 +21,18 @@ router.delete(
   "/:sessionCode/participants/:nickname",
   activeSessionsController.removeParticipant,
 );
+router.post(
+  "/:sessionCode/played-suggestions",
+  activeSessionsController.toggleSongAsPlayed,
+);
+router.delete(
+  "/:sessionCode/songs/:songId",
+  activeSessionsController.removeSong,
+);
+
+router.post(
+  "/:sessionCode/songs/:songId/vote",
+  activeSessionsController.voteForSong,
+);
 
 module.exports = router;

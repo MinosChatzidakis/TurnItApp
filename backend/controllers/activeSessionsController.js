@@ -323,6 +323,12 @@ const addSuggestion = async (req, res) => {
           "This song has already been suggested! You can vote for it instead",
       });
   }
+  const songIsBanned = sess?.bannedSongs.some((item) => item === songId);
+  if (songIsBanned) {
+    return res.status(403).json({
+      error: "Song is banned in this session by host. Try another one.",
+    });
+  }
 
   //get song object from cache based on id sent back
   let songToSuggest;
@@ -406,7 +412,6 @@ const getSuggestions = async (req, res) => {
 const removeParticipant = async (req, res) => {
   try {
     const { sessionCode: code, nickname } = req.params;
-    console.log(code, nickname);
 
     // 1. Extract the token from the "Authorization: Bearer <token>" header
     const authHeader = req.headers.authorization;
@@ -452,8 +457,7 @@ const removeParticipant = async (req, res) => {
 
     if (!isHost && !isSelf) {
       return res.status(403).json({
-        error:
-          "Unauthorized: You must be the host or the specific user to do this.",
+        error: "You are unauthorized to perform this action.",
       });
     }
 
@@ -486,6 +490,131 @@ const removeParticipant = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+
+const toggleSongAsPlayed = async (req, res) => {
+  try {
+    const sessionCode = req.params?.sessionCode.toUpperCase().trim();
+    const { songId } = req.body;
+
+    // Extract Token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ error: "Missing or invalid authorization header" });
+    }
+    const requesterHash = authHeader.split(" ")[1];
+
+    const updatedSuggestions = await sessionsModel.toggleSuggestionPlayedStatus(
+      sessionCode,
+      songId,
+      requesterHash,
+    );
+
+    // Respond with success
+    return res.status(200).json({
+      message: "Song updated successfully",
+      suggestions: updatedSuggestions, //return suggestions
+    });
+  } catch (error) {
+    console.error("Error toggling song:", error.message);
+
+    // Use the custom status from the model, or default to 500
+    const statusCode = error.status || 500;
+    return res
+      .status(statusCode)
+      .json({ error: error.message || "Internal server error" });
+  }
+};
+
+const removeSong = async (req, res) => {
+  try {
+    const sessionCode = req.params.sessionCode.toUpperCase().trim();
+    const songId = req.params.songId;
+
+    const banSong = req.query.ban === "true";
+
+    // 3. Extract Token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ error: "Missing or invalid authorization header" });
+    }
+    const requesterHash = authHeader.split(" ")[1];
+
+    if (!songId) {
+      return res.status(400).json({ error: "Song ID is required" });
+    }
+
+    // 4. Delegate heavy lifting to the model
+    const updatedSuggestions = await sessionsModel.removeAndOptionallyBanSong(
+      sessionCode,
+      songId,
+      requesterHash,
+      banSong,
+    );
+
+    // 5. Respond with the new suggestions array
+    return res.status(200).json({
+      message: banSong
+        ? "Song removed and banned"
+        : "Song removed successfully",
+      suggestions: updatedSuggestions,
+    });
+  } catch (error) {
+    console.error("Error removing song:", error.message);
+    const statusCode = error.status || 500;
+    return res
+      .status(statusCode)
+      .json({ error: error.message || "Internal server error" });
+  }
+};
+
+const voteForSong = async (req, res) => {
+  try {
+    console.log("Controller online");
+    const { sessionCode, songId } = req.params;
+    const { action } = req.body; // "like", "dislike", or "none"
+
+    // 1. Extract and validate the Token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ error: "Missing or invalid authorization header" });
+    }
+
+    const requesterHash = authHeader.split(" ")[1];
+
+    if (!action) {
+      return res
+        .status(400)
+        .json({ error: "An action ('like', 'dislike', 'none') is required" });
+    }
+
+    // 2. Pass to the model
+    const updatedSong = await sessionsModel.updateSongVote(
+      sessionCode.toUpperCase().trim(),
+      songId,
+      requesterHash,
+      action,
+    );
+
+    // 3. Return success
+    return res.status(200).json({
+      message: "Vote registered successfully",
+      song: updatedSong,
+    });
+  } catch (error) {
+    console.error("Error voting for song:", error.message);
+    const statusCode = error.status || 500;
+    return res
+      .status(statusCode)
+      .json({ error: error.message || "Internal server error" });
+  }
+};
+
 module.exports = {
   getActiveSessions,
   getSessionByCode,
@@ -496,4 +625,7 @@ module.exports = {
   addSuggestion,
   getSuggestions,
   removeParticipant,
+  toggleSongAsPlayed,
+  removeSong,
+  voteForSong,
 };

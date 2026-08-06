@@ -26,11 +26,19 @@ const sessionSchema = new mongoose.Schema(
         thumbnail: { type: String, required: true },
         suggestedByHash: { type: String, required: true }, //participant hash
         suggestedAt: { type: Date, default: Date.now }, //automatic timestamp
-        score: { type: Number, default: 1 },
+        score: { type: Number, default: 0 },
+        likedBy: { type: [String], default: [] }, // Will store user hashes
+        dislikedBy: { type: [String], default: [] },
+        isPlayed: { type: Boolean, default: false },
       },
     ],
 
     isActive: { type: Boolean, default: true },
+
+    bannedSongs: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true },
 );

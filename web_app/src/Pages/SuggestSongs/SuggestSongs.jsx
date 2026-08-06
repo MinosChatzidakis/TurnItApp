@@ -1,6 +1,6 @@
 //TODO: maybe add a "now playing feature?"
 //TODO when suggestions, likes etc get sent to the backend then we check if the user has joined the session
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import SearchBar from "../../Components/SearchBar/SearchBar";
 import Button from "../../Components/SimpleButton/Button";
 import SongCard from "../../Components/SongCard/SongCard";
@@ -13,13 +13,26 @@ import {
   getActiveSession,
   addSuggestion,
   getSuggestions,
+  voteForSong,
 } from "../../utils/sessionUtils";
 import { useRouting } from "../../hooks/useRouting";
 import { useParams } from "react-router-dom";
 
+const debouncePromise = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    return new Promise((resolve) => {
+      if (timeoutId) clearTimeout(timeoutId);
+
+      timeoutId = setTimeout(async () => {
+        const result = await func(...args);
+        resolve(result);
+      }, delay);
+    });
+  };
+};
+
 function SuggestSongs() {
-  const [likedSongs, setLikedSongs] = useState([]);
-  const [dislikedSongs, setDislikedSongs] = useState([]);
   const [suggestedSongs, setSuggestedSongs] = useState([]);
   const [joinedSession, setJoinedSession] = useState();
   const currStor = localStorage.getItem("sessionData"); //get local storage
@@ -49,6 +62,7 @@ function SuggestSongs() {
     const verifyCode = async () => {
       if (!sessionCode) {
         setIsValidSession(false); //no code => invalid
+        localStorage.removeItem("sessionData");
         return;
       }
 
@@ -62,9 +76,11 @@ function SuggestSongs() {
           setJoinedSession(sessionData);
         } else {
           setIsValidSession(false); //it doesn't => invalid
+          localStorage.removeItem("sessionData");
         }
       } catch (err) {
         setIsValidSession(false);
+        localStorage.removeItem("sessionData");
       }
     };
 
@@ -131,36 +147,42 @@ function SuggestSongs() {
   };
 
   // safely fetch spotify songs
-  const loadOptions = async (inputValue) => {
-    if (!inputValue) return []; // If the box is empty, don't search
+  const loadOptions = useCallback(
+    debouncePromise(async (inputValue) => {
+      if (!inputValue) return []; // If the box is empty, don't search
 
-    setError(null); // Clear any old errors from the screen
+      setError(null); // Clear any old errors
 
-    try {
-      // We use encodeURIComponent just like before for safety
-      const response = await fetch(
-        `http://localhost:3000/songs/search?q=${encodeURIComponent(inputValue)}`,
-      );
+      try {
+        const response = await fetch(
+          `http://localhost:3000/songs/search?q=${encodeURIComponent(inputValue)}`,
+        );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch songs");
+        if (!response.ok) {
+          throw new Error("Failed to fetch songs");
+        }
+
+        const data = await response.json();
+
+        return data.map((song) => ({
+          value: song,
+          label: song.title,
+        }));
+      } catch (err) {
+        console.error(`Error in loadOptions for ${inputValue}:`, err);
+        return [];
       }
+    }, 500), // <-- 500ms delay. Adjust this number to make it feel faster or slower.
+    [], // Empty dependency array ensures the debouncer doesn't reset on re-renders
+  );
 
-      const data = await response.json();
-
-      // If successful, format the data for react-select and return it
-      return data.map((song) => ({
-        value: song,
-        label: song.title,
-      }));
+  const sendVoteToBackend = async (songId, action) => {
+    try {
+      await voteForSong(sessionCode, songId, action, currStor_JSON?.token);
     } catch (err) {
-      console.error(`Error in loadOptions for ${inputValue}:`, err);
-
-      //setError(err.message);  dont do this -> error flickers if enabled
-
-      // Return an empty array so react-select doesn't crash,
-      // it will just safely show "No options" in the dropdown.
-      return [];
+      setError("Failed to register vote. Please try again.");
+      // If you wanted to be perfectly robust, you would revert the local state here,
+      // but for a music app, just showing an error toast is usually fine.
     }
   };
 
@@ -184,12 +206,38 @@ function SuggestSongs() {
   };
 
   const onLike = (songId) => {
-    if (likedSongs?.includes(songId)) {
-      // already liked
-      removeFromLiked(songId); //remove liked song
-    } else {
-      addToLiked(songId);
-    }
+    // 1. Find the current state of the song
+    const song = suggestedSongs.find((s) => s.songId === songId);
+    if (!song) return;
+
+    // 2. Determine what action we are sending to the backend
+    const isRemovingLike = song.hasLiked;
+    const action = isRemovingLike ? "none" : "like";
+
+    // 3. Optimistically update the UI instantly
+    setSuggestedSongs((prev) =>
+      prev.map((s) => {
+        if (s.songId === songId) {
+          let newScore = s.score;
+          if (isRemovingLike) {
+            newScore -= 1; // They un-liked it
+          } else {
+            newScore += 1; // They liked it
+            if (s.hasDisliked) newScore += 1; // If they switched from dislike to like, refund the dislike penalty too
+          }
+          return {
+            ...s,
+            hasLiked: !isRemovingLike,
+            hasDisliked: false,
+            score: newScore,
+          };
+        }
+        return s;
+      }),
+    );
+
+    // 4. Send to backend
+    sendVoteToBackend(songId, action);
   };
 
   const addToDisliked = (songId) => {
@@ -212,14 +260,39 @@ function SuggestSongs() {
   };
 
   const onDislike = (songId) => {
-    if (dislikedSongs?.includes(songId)) {
-      // already disliked
-      removeFromDisliked(songId);
-    } else {
-      addToDisliked(songId);
-    }
-  };
+    // 1. Find the current state of the song
+    const song = suggestedSongs.find((s) => s.songId === songId);
+    if (!song) return;
 
+    // 2. Determine what action we are sending to the backend
+    const isRemovingDislike = song.hasDisliked;
+    const action = isRemovingDislike ? "none" : "dislike";
+
+    // 3. Optimistically update the UI instantly
+    setSuggestedSongs((prev) =>
+      prev.map((s) => {
+        if (s.songId === songId) {
+          let newScore = s.score;
+          if (isRemovingDislike) {
+            newScore += 1; // They un-disliked it
+          } else {
+            newScore -= 1; // They disliked it
+            if (s.hasLiked) newScore -= 1; // If they switched from like to dislike, remove the like bonus too
+          }
+          return {
+            ...s,
+            hasLiked: false,
+            hasDisliked: !isRemovingDislike,
+            score: newScore,
+          };
+        }
+        return s;
+      }),
+    );
+
+    // 4. Send to backend
+    sendVoteToBackend(songId, action);
+  };
   // This wrapper acts as the translator between react-select and LeaderboardCard
   const CustomLeaderboardOption = (props) => {
     // react-select gives us these three special variables
@@ -328,38 +401,51 @@ function SuggestSongs() {
         {suggestedSongs
           .sort((a, b) => b.score - a.score)
           .map((song, index) => {
-            //sort by score
-            const songIsLiked = likedSongs?.includes(song.songId); // check if song is liked
-            const songIsDisliked = dislikedSongs?.includes(song.songId); // check if song is disliked
             return (
               <LeaderboardCard
                 key={`${index}_card`}
                 rank={index + 1}
                 song={song}
-                onClick={() => console.log("Works")}
-                onLike={() => onLike(song.songId)}
-                onDislike={() => onDislike(song.songId)}
-                liked={songIsLiked || false}
-                disliked={songIsDisliked}
+                onClick={() =>
+                  window.open(
+                    `https://open.spotify.com/track/${song.songId}`,
+                    "_blank",
+                  )
+                }
+                // Use optimistic UI logic for the clicks!
+                onLike={() => {
+                  const action = song.hasLiked ? "none" : "like";
+                  sendVoteToBackend(song.songId, action);
+                  setFetchSuggestions(true); // Instantly re-fetch to show new score/color
+                }}
+                onDislike={() => {
+                  const action = song.hasDisliked ? "none" : "dislike";
+                  sendVoteToBackend(song.songId, action);
+                  setFetchSuggestions(true); // Instantly re-fetch to show new score/color
+                }}
+                // 👇 Read directly from the backend data!
+                liked={song.hasLiked}
+                disliked={song.hasDisliked}
+                selfSuggested={song.suggestedByNickname === currStor_JSON?.name}
+                showSuggestedBy={true}
               />
             );
           })}
       </div>
-      {/* //todo add a check to see if user has joined this session*/}
       <Button
-        onClick={() => {
+        onClick={async () => {
           try {
-            removeParticipantFromSession(
+            await removeParticipantFromSession(
               sessionCode,
               currStor_JSON?.name,
               currStor_JSON?.token,
             );
+            localStorage.removeItem("sessionData"); //remove from the device
+            gotoPage("join_session");
           } catch (error) {
-            setError(error);
-            console.log(error);
+            setError(error.message || "Something went wrong");
+            console.log(error.message || "Something went wrong");
           }
-          localStorage.removeItem("sessionData"); //remove from the device
-          gotoPage("join_session");
         }}
       >
         LEAVE SESSION
@@ -368,7 +454,7 @@ function SuggestSongs() {
   ) : (
     <div style={{ textAlign: "center" }}>
       Couldn't find session. This might be due to a wrong code or because the
-      host has ended the session
+      host has ended the session or kicked you from it:
       <span
         onClick={() => {
           localStorage.removeItem("sessionData"); //so that the user is not prompted to continue

@@ -5,10 +5,14 @@ import {
   getActiveSession,
   updateSession,
   endSession,
+  toggleSongAsPlayed,
+  removeSong,
+  removeParticipantFromSession,
 } from "../../utils/sessionUtils";
 import { useError } from "../../Contexts/ErrorContext";
 import { useRouting } from "../../hooks/useRouting";
 import Button from "../../Components/SimpleButton/Button";
+import UserProfile from "../../Components/UserDetails/UserProfile";
 import {
   FaSpinner,
   FaCopy,
@@ -37,6 +41,8 @@ const HostDashboard = () => {
 
   const [activeTab, setActiveTab] = useState("settings");
 
+  const [selectedPart, setSelectedPart] = useState(null);
+
   const setSessionName = (newName) => {
     setSession((prev) => ({ ...prev, name: newName }));
   };
@@ -47,25 +53,6 @@ const HostDashboard = () => {
       host: { ...prev.host, nickname: newNickname },
     }));
   };
-
-  const songActions = [
-    {
-      label: "Set as played",
-      danger: false,
-      onClick: () => {},
-    },
-    {
-      label: "View in spotify",
-      danger: false,
-      onClick: () => {},
-    },
-    {
-      label: "Ban song",
-      danger: true,
-      onClick: () => {},
-    },
-  ];
-  const participantsActions = [];
 
   const [isValidSession, setIsValidSession] = useState(null);
 
@@ -115,6 +102,25 @@ const HostDashboard = () => {
     );
   }
 
+  const openSongInSpotify = (id) =>
+    window.open(`https://open.spotify.com/track/${id}`, "_blank");
+
+  const removeOrBanSong = async (sessionCode, songId, ban, token) => {
+    try {
+      const updatedSuggestions = await removeSong(
+        sessionCode,
+        songId,
+        ban,
+        token,
+      );
+      setCurrentSession((prev) => ({
+        ...prev,
+        suggestions: updatedSuggestions,
+      }));
+    } catch (error) {
+      setError(error);
+    }
+  };
   return isValidSession ? (
     <div className="host-dashboard-container">
       <h2 className="dashboard-title">SESSION DASHBOARD</h2>
@@ -263,7 +269,13 @@ const HostDashboard = () => {
                 .sort((a, b) => (b.score ?? 1) - (a.score ?? 1))
                 .map((song, index) => {
                   return (
-                    <div key={index} className="fancy-card">
+                    <div
+                      key={index}
+                      className="fancy-card"
+                      onClick={() => {
+                        openSongInSpotify(song.songId);
+                      }}
+                    >
                       <div className="fancy-info-group">
                         <div className="icon-wrapper">
                           {song.thumbnail ? (
@@ -297,18 +309,54 @@ const HostDashboard = () => {
                         <ActionMenu
                           options={[
                             {
-                              label: "Set as played",
-                              onClick: () => setSongAsPlayed(),
+                              label: song.isPlayed
+                                ? "Mark as unplayed"
+                                : "Set as played",
+                              onClick: async () => {
+                                try {
+                                  const newSuggestions =
+                                    await toggleSongAsPlayed(
+                                      sessionCode,
+                                      song.songId,
+                                      savedHostData.token,
+                                    );
+
+                                  //update local instance
+                                  setCurrentSession((prev) => ({
+                                    ...prev,
+                                    suggestions: newSuggestions,
+                                  }));
+                                } catch (err) {
+                                  setError(err.message);
+                                }
+                              },
                             },
                             {
-                              label: "Add to Playlist",
-                              onClick: () =>
-                                console.log("Add: ", song.songTitle),
+                              label: "View on Spotify",
+                              onClick: () => {
+                                openSongInSpotify(song.songId);
+                              },
                             },
                             {
-                              label: "Remove Suggestion",
-                              onClick: () =>
-                                console.log("Remove: ", song.songTitle),
+                              label: "Remove suggestion",
+                              onClick: async () =>
+                                removeOrBanSong(
+                                  sessionCode,
+                                  song.songId,
+                                  false,
+                                  savedHostData.token,
+                                ),
+                              danger: true,
+                            },
+                            {
+                              label: "Ban suggestion",
+                              onClick: async () =>
+                                removeOrBanSong(
+                                  sessionCode,
+                                  song.songId,
+                                  true,
+                                  savedHostData.token,
+                                ),
                               danger: true,
                             },
                           ]}
@@ -347,37 +395,55 @@ const HostDashboard = () => {
 
             {/* Participants Mapping */}
             {currentSession?.participants?.length > 0 &&
-              currentSession.participants.map((participant, index) => (
-                <div key={index} className="fancy-card">
-                  <div className="fancy-info-group">
-                    <div className="icon-wrapper">
-                      <FaUser />
+              currentSession.participants.map((participant, index) => {
+                return (
+                  <div
+                    key={index}
+                    className="fancy-card"
+                    onClick={() => {
+                      setSelectedPart(participant);
+                    }}
+                  >
+                    <div className="fancy-info-group">
+                      <div className="icon-wrapper">
+                        <FaUser />
+                      </div>
+                      <div className="card-text-content">
+                        <h4 className="card-title">{participant}</h4>
+                        <p className="card-subtitle">Participant</p>
+                      </div>
                     </div>
-                    <div className="card-text-content">
-                      <h4 className="card-title">{participant}</h4>
-                      <p className="card-subtitle">Participant</p>
-                    </div>
-                  </div>
 
-                  <div className="card-actions">
-                    {/* --- NEW PARTICIPANT MENU --- */}
-                    <ActionMenu
-                      options={[
-                        {
-                          label: "Make Host",
-                          onClick: () =>
-                            console.log("Make Host: ", participant),
-                        },
-                        {
-                          label: "Kick Participant",
-                          onClick: () => console.log("Kick: ", participant),
-                          danger: true,
-                        },
-                      ]}
-                    />
+                    <div className="card-actions">
+                      {/* --- NEW PARTICIPANT MENU --- */}
+                      <ActionMenu
+                        options={[
+                          {
+                            label: "Kick Participant",
+                            onClick: async () => {
+                              try {
+                                const updatedParticipants =
+                                  await removeParticipantFromSession(
+                                    sessionCode,
+                                    participant,
+                                    savedHostData?.token,
+                                  );
+                                setCurrentSession((prev) => ({
+                                  ...prev,
+                                  participants: updatedParticipants,
+                                }));
+                              } catch (e) {
+                                setError(e);
+                              }
+                            },
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
 
           {currentSession?.participants?.length === 0 && (

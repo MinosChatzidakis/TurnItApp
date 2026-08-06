@@ -44,21 +44,6 @@ export const getActiveSession = async (sessionCode, userToken) => {
   return session;
 };
 
-/* const addNicknameToSession = async (sessionCode, nickname) => {
-  try {
-    await fetch("http://localhost:3000/sessions/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionCode: sessionCode, nickname: nickname }),
-    });
-  } catch (e) {
-    console.log(
-      `Could not add nickname ${nickname} to session: ${sessionCode}`,
-    );
-    return e; //propagate the error
-  }
-}; */
-
 export const joinSession = async (nickname, sessionCode) => {
   const cleanName = nickname?.trim();
   const cleanCode = sessionCode?.trim();
@@ -124,7 +109,6 @@ export const removeParticipantFromSession = async (
   targetNickname,
   authToken,
 ) => {
-  console.log(sessionCode, targetNickname, authToken);
   if (!sessionCode || !targetNickname || !authToken)
     throw new Error("Missing fields, cannot remove user");
 
@@ -145,7 +129,9 @@ export const removeParticipantFromSession = async (
     throw new Error(err || "Failed to remove participant");
   }
 
-  return await response.json();
+  const j = await response.json();
+  const newParticipantNicknames = j.participants;
+  return newParticipantNicknames;
 };
 
 export const createSession = async (newSession) => {
@@ -294,22 +280,25 @@ export const getSuggestions = async (sessionCode, userHash) => {
   }
 };
 
-export const setSongAsPlayed = async (sessionCode, songId, hostHash) => {
+export const toggleSongAsPlayed = async (sessionCode, songId, hostHash) => {
   if (!sessionCode || !songId || !hostHash) {
     throw new Error("Cannot set as played because fields are missing");
   }
   const trueCode = sessionCode.toUpperCase().trim();
   try {
-    const response = await fetch(`http://localhost:3000/sessions/${trueCode}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${hostHash}`,
+    const response = await fetch(
+      `http://localhost:3000/sessions/${trueCode}/played-suggestions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${hostHash}`,
+        },
+        body: JSON.stringify({
+          songId: songId,
+        }),
       },
-      body: {
-        songId: songId,
-      },
-    });
+    );
     if (!response.ok) {
       const j = await response.json();
       const error = j.error;
@@ -318,13 +307,67 @@ export const setSongAsPlayed = async (sessionCode, songId, hostHash) => {
       );
     }
     const data = await response.json();
+    console.log("Song toggled as played successfully!");
     return data?.suggestions; //! this needs to be returned
 
     if (!updatedSuggestions)
       throw new Error("Update fetched but something went wrong");
-    console.log("");
   } catch (error) {
     console.log(error);
     throw error;
   }
+};
+
+export const removeSong = async (sessionCode, songId, ban, hostHash) => {
+  if (!sessionCode || !songId || !hostHash) {
+    throw new Error("Missing info, cannot remove song");
+  }
+  try {
+    // We put the songId in the path, and the ban option in a query parameter (?ban=true)
+    const response = await fetch(
+      `http://localhost:3000/sessions/${sessionCode}/songs/${songId}?ban=${ban || false}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${hostHash}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      const jres = await response.json();
+      const err = jres.error;
+      throw new Error(err || "Something went wrong with removing the song");
+    }
+    const jres = await response.json();
+    const updatedSuggestions = jres?.suggestions;
+    console.log(updatedSuggestions);
+    const mesg = jres?.message;
+    console.log(mesg);
+    return updatedSuggestions;
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
+};
+
+export const voteForSong = async (sessionCode, songId, action, token) => {
+  // action should be 'like', 'dislike', or 'none'
+  const response = await fetch(
+    `http://localhost:3000/sessions/${sessionCode}/songs/${songId}/vote`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to vote");
+  }
+
+  return await response.json();
 };

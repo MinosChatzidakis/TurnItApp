@@ -38,35 +38,38 @@ function JoinSession() {
     }
   };
 
-  //TODO move all of this logic to the backend
-  const getActiveSessions = async (codesOnly = false) => {
-    const response = await fetch(
-      `http://localhost:3000/sessions/active?codesOnly=${codesOnly}`,
-    );
-    if (!response.ok) {
-      console.log("No session found.");
-      return null;
-    }
-    const activeSessionCodes = await response.json();
-    if (!activeSessionCodes) {
-      console.log("No session found.");
-      return null;
-    }
-    console.log("active sessions codes:", activeSessionCodes);
-    return activeSessionCodes;
-  };
-
   const joinSessionWithCode = async () => {
     if (!sessionCode) return setError("Enter a session code to proceed!");
     if (!nickname) return setError("Enter a nickname to proceed!");
 
     const existingSession = JSON.parse(localStorage.getItem("sessionData"));
+    //rejoin previously joined session with the same nickname
+    if (
+      existingSession &&
+      existingSession.activeSessionCode === sessionCode &&
+      existingSession.name === nickname
+    ) {
+      setError(`Welcome back, ${nickname}!`);
+      gotoPage("Suggest_Songs", sessionCode); // Success! Enter session.
+      return;
+    }
+    //rejoin previously joined session with a different nickname
+    if (
+      existingSession &&
+      existingSession.activeSessionCode === sessionCode &&
+      existingSession.name !== nickname
+    ) {
+      setError(
+        `You have already joined this session with a different nickname! (${existingSession?.name})`,
+      );
+      return;
+    }
+    //join a different session
     if (existingSession && existingSession.activeSessionCode !== sessionCode) {
       return setError(
         `You have already joined session: ${existingSession.activeSessionCode}`,
       );
     }
-
     try {
       // joinSession throws an error if it fails, so we don't need to check res.ok
       await joinSession(nickname, sessionCode);

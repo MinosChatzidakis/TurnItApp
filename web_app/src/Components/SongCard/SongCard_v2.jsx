@@ -14,6 +14,8 @@ const LeaderboardCard = ({
   liked = null,
   disliked = null,
   rank,
+  selfSuggested = false,
+  showSuggestedBy = false,
 }) => {
   return (
     <div className="leaderboard-card" onClick={onClick}>
@@ -29,9 +31,14 @@ const LeaderboardCard = ({
 
       {/* 3. Song Info (This will stretch to push the icons to the right) */}
       <div className="leaderboard-info">
-        <h4 className="leaderboard-title">{song.title || song.songTitle}</h4>{" "}
+        <h4 className="leaderboard-title">{song.title || song.songTitle}</h4>
         {/* take both naming possibilities into consideration */}
         <p className="leaderboard-artist">{song.artists}</p>
+        {showSuggestedBy && (
+          <p className="suggested-by">
+            {`Suggested by: ${selfSuggested ? "ME" : song.suggestedByNickname}`}
+          </p>
+        )}
       </div>
 
       {/* 4. Score and Icons grouped on the far right */}
