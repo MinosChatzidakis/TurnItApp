@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import "./EmailPopup.css";
+import "./EmailPopup.styles.css";
 
 export default function EmailPopup() {
   const [isOpen, setIsOpen] = useState(false);
