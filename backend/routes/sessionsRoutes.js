@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const activeSessionsController = require("../controllers/activeSessionsController");
-const Email = require("../models/email"); // Adjust path if needed
 
 //* they all inherently start with "/sessions"
 router.get("/active", activeSessionsController.getActiveSessions);

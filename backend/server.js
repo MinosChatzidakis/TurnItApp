@@ -6,6 +6,7 @@ const app = express();
 const { generateSecureHash } = require("./utils/hashingUtils"); //get the hashing function
 const spotifyRoutes = require("./routes/spotifyRoutes");
 const sessionRoutes = require("./routes/sessionsRoutes");
+const Email = require("../models/email"); // Adjust path if needed;
 
 //connect to the mongodb database
 connectDB();
