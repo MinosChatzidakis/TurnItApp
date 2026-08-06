@@ -18,7 +18,7 @@ function App() {
     if (isManualRetry) setIsRetrying(true);
 
     try {
-      const response = await fetch("http://localhost:3000/health");
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/health`);
 
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);

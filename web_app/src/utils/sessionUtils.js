@@ -33,7 +33,7 @@ export const getActiveSession = async (sessionCode, userToken) => {
     throw new Error("Missing info, cannot get session details");
   }
   const response = await fetch(
-    `http://localhost:3000/sessions/code/${sessionCode}/${userToken}`,
+    `${import.meta.env.VITE_API_URL}/sessions/code/${sessionCode}/${userToken}`,
   );
   if (!response.ok)
     throw new Error({
@@ -50,7 +50,7 @@ export const joinSession = async (nickname, sessionCode) => {
   let response;
 
   try {
-    response = await fetch(`http://localhost:3000/sessions/join`, {
+    response = await fetch(`${import.meta.env.VITE_API_URL}/sessions/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionCode: cleanCode, nickname: cleanName }),
@@ -113,7 +113,7 @@ export const removeParticipantFromSession = async (
     throw new Error("Missing fields, cannot remove user");
 
   const response = await fetch(
-    `http://localhost:3000/sessions/${sessionCode}/participants/${targetNickname}`,
+    `${import.meta.env.VITE_API_URL}/sessions/${sessionCode}/participants/${targetNickname}`,
     {
       method: "DELETE",
       headers: {
@@ -136,14 +136,17 @@ export const removeParticipantFromSession = async (
 
 export const createSession = async (newSession) => {
   try {
-    const response = await fetch("http://localhost:3000/sessions/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionName: newSession.name,
-        sessionHost: newSession.owner,
-      }),
-    });
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/sessions/create`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionName: newSession.name,
+          sessionHost: newSession.owner,
+        }),
+      },
+    );
     return response;
   } catch (error) {
     console.log(error);
@@ -160,7 +163,7 @@ export const updateSession = async (sessionCode, newSession, hostToken) => {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/sessions/update/${sessionCode}`, //req.params
+      `${import.meta.env.VITE_API_URL}/sessions/update/${sessionCode}`, //req.params
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -195,7 +198,7 @@ export const endSession = async (sessionCode, hostHash) => {
   }
 
   const response = await fetch(
-    `http://localhost:3000/sessions/${sessionCode}`,
+    `${import.meta.env.VITE_API_URL}/sessions/${sessionCode}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -224,7 +227,7 @@ export const addSuggestion = async (sessionCode, userHash, suggestion) => {
   sessionCode = sessionCode?.trim().toUpperCase();
   const cleanHash = userHash?.trim();
   const response = await fetch(
-    `http://localhost:3000/sessions/suggest/${sessionCode}`,
+    `${import.meta.env.VITE_API_URL}/sessions/suggest/${sessionCode}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -260,7 +263,7 @@ export const getSuggestions = async (sessionCode, userHash) => {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/sessions/suggestions/${cleanCode}?hash=${cleanHash}`,
+      `${import.meta.env.VITE_API_URL}/sessions/suggestions/${cleanCode}?hash=${cleanHash}`,
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -287,7 +290,7 @@ export const toggleSongAsPlayed = async (sessionCode, songId, hostHash) => {
   const trueCode = sessionCode.toUpperCase().trim();
   try {
     const response = await fetch(
-      `http://localhost:3000/sessions/${trueCode}/played-suggestions`,
+      `${import.meta.env.VITE_API_URL}/sessions/${trueCode}/played-suggestions`,
       {
         method: "POST",
         headers: {
@@ -325,7 +328,7 @@ export const removeSong = async (sessionCode, songId, ban, hostHash) => {
   try {
     // We put the songId in the path, and the ban option in a query parameter (?ban=true)
     const response = await fetch(
-      `http://localhost:3000/sessions/${sessionCode}/songs/${songId}?ban=${ban || false}`,
+      `${import.meta.env.VITE_API_URL}/sessions/${sessionCode}/songs/${songId}?ban=${ban || false}`,
       {
         method: "DELETE",
         headers: {
@@ -353,7 +356,7 @@ export const removeSong = async (sessionCode, songId, ban, hostHash) => {
 export const voteForSong = async (sessionCode, songId, action, token) => {
   // action should be 'like', 'dislike', or 'none'
   const response = await fetch(
-    `http://localhost:3000/sessions/${sessionCode}/songs/${songId}/vote`,
+    `${import.meta.env.VITE_API_URL}/sessions/${sessionCode}/songs/${songId}/vote`,
     {
       method: "POST",
       headers: {

@@ -155,7 +155,7 @@ function SuggestSongs() {
 
       try {
         const response = await fetch(
-          `http://localhost:3000/songs/search?q=${encodeURIComponent(inputValue)}`,
+          `${import.meta.env.VITE_API_URL}/songs/search?q=${encodeURIComponent(inputValue)}`,
         );
 
         if (!response.ok) {

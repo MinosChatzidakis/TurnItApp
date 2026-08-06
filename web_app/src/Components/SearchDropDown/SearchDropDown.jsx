@@ -4,7 +4,7 @@ import AsyncSelect from "react-select/async";
 const loadOptions = async (inputValue) => {
   if (!inputValue) return [];
   const response = await fetch(
-    `http://localhost:3000/songs/search?q=${inputValue}`,
+    `${import.meta.env.VITE_API_URL}/songs/search?q=${inputValue}`,
   );
   if (!response.ok) throw new Error("Could not load options");
   const data = await response.json();
