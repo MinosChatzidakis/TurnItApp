@@ -90,23 +90,25 @@ function App() {
             </div>
           ) : (
             /* 3. If server is UP, render the actual app */
-            <Routes>
-              <Route path="/" element={<SplashPage />} />
-              <Route
-                path="/join-session/:sessionCode?"
-                element={<JoinSession />}
-              />
-              <Route
-                path="/suggest-songs/:sessionCode?"
-                element={<SuggestSongs />}
-              />
-              <Route path="/host-session" element={<HostSession />} />
-              <Route
-                path="/host-dashboard/:sessionCode?"
-                element={<HostDashboard />}
-              />
+            <>
+              <Routes>
+                <Route path="/" element={<SplashPage />} />
+                <Route
+                  path="/join-session/:sessionCode?"
+                  element={<JoinSession />}
+                />
+                <Route
+                  path="/suggest-songs/:sessionCode?"
+                  element={<SuggestSongs />}
+                />
+                <Route path="/host-session" element={<HostSession />} />
+                <Route
+                  path="/host-dashboard/:sessionCode?"
+                  element={<HostDashboard />}
+                />
+              </Routes>
               <EmailPopup />
-            </Routes>
+            </>
           )}
         </BrowserRouter>
       </SessionProvider>
