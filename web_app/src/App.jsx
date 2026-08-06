@@ -8,6 +8,7 @@ import { ErrorProvider } from "./Contexts/ErrorContext";
 import { SessionProvider } from "./Contexts/SessionContext";
 import HostSession from "./Pages/HostSession/HostSession";
 import HostDashboard from "./Pages/HostDashboard/HostDashboard";
+import EmailPopup from "./Components/EmailPopUp/EmiailPopUp";
 
 function App() {
   const [isServerDown, setIsServerDown] = useState(false);
@@ -104,6 +105,7 @@ function App() {
                 path="/host-dashboard/:sessionCode?"
                 element={<HostDashboard />}
               />
+              <EmailPopup />
             </Routes>
           )}
         </BrowserRouter>

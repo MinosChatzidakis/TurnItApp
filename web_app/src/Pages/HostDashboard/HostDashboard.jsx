@@ -187,8 +187,8 @@ const HostDashboard = () => {
 
           <span className="settings-label">Owner's nickname:</span>
           <SearchBar
-            placeholderText={session?.host?.nickname || session?.host}
-            query={session?.host?.nickname || session?.host}
+            placeholderText={ession?.host || "host's nickname"}
+            query={session?.host}
             setQuery={setSessionOwner}
           />
 
